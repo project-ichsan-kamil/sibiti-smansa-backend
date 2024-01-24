@@ -6,7 +6,7 @@ export class ProfileUser {
     @PrimaryGeneratedColumn({type : 'bigint'})
     id : number;
 
-    @Column()
+    @Column({type : "bigint"})
     userId : number;
 
     @Column({length : 255})
@@ -35,9 +35,4 @@ export class ProfileUser {
 
     @UpdateDateColumn({ type: 'timestamp'})
     updatedAt: Date;
-
-    @BeforeInsert()
-    generateId() {
-        this.id = new Date().valueOf();
-    }
 }
