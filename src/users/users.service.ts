@@ -1,37 +1,63 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import { ProfileUserService } from 'src/profile-user/profile-user.service';
+import { AuthService } from 'src/auth/auth.service';
+import { logErrorMessage } from 'src/utils/log';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
-    private usersRepository: Repository<User>,
-    private userProfileService : ProfileUserService
+    private readonly usersRepository: Repository<User>,
+    private readonly userProfileService : ProfileUserService,
+    private readonly authService : AuthService,
   ) {}
 
   //create user
   async create(createUserDto: CreateUserDto) {
     const existUser = await this.findByEmail(createUserDto.email);
     if (existUser) {
+      logErrorMessage("email already exists")
       throw new HttpException({
-        message : ["email already exists"],
+        errorField: true,
+        nameField: 'email',
+        errorAllert: false,
+        message: 'email already exists',
       }, HttpStatus.BAD_REQUEST);
     }
 
     const user = this.usersRepository.create(createUserDto)
     
     try {
+
       const createdUser = await this.usersRepository.save(user)
       
-      await this.userProfileService.create({
+      const userProfile = await this.userProfileService.create({
         userId: createdUser.id,
         email : createdUser.email,
         username : createdUser.username
       });
+
+      const token = await this.authService.generateToken(createdUser.id.toString());
+
+      try {
+        await this.authService.sendVerificationEmail(createdUser.email, token);
+      } catch (emailError) {
+        // Jika pengiriman email gagal, batalkan pembuatan pengguna
+        logErrorMessage(`Error sending verification email:', ${emailError.message}`)
+
+        // Hapus pengguna yang baru saja dibuat
+        await this.usersRepository.delete(createdUser.id);
+        await this.userProfileService.remove(userProfile.id)
+
+        throw new HttpException({
+          message: 'Error sending verification email',
+        }, HttpStatus.INTERNAL_SERVER_ERROR);
+        
+      }
 
       return createdUser;
     } catch (error) {
@@ -60,10 +86,6 @@ export class UsersService {
     return user;
   }
 
-  // update(id: number, updateUserDto: UpdateUserDto) {
-  //   return `This action updates a #${id} user`;
-  // }
-
   async remove(id: number) {
     try {
       await this.usersRepository.delete(id);
@@ -75,5 +97,7 @@ export class UsersService {
   async findByEmail( email : string){
     return await this.usersRepository.findOne({where : {email}})
   }
+
+
 
 }

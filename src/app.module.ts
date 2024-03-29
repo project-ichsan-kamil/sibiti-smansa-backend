@@ -4,6 +4,8 @@ import { User } from './users/entities/user.entity';
 import { UsersModule } from './users/users.module';
 import { ProfileUserModule } from './profile-user/profile-user.module';
 import { ProfileUser } from './profile-user/entities/profile-user.entity';
+import { AuthModule } from './auth/auth.module';
+import { JwtModule } from '@nestjs/jwt';
 
 
 @Module({
@@ -16,7 +18,14 @@ import { ProfileUser } from './profile-user/entities/profile-user.entity';
     database: 'test',
     entities: [User, ProfileUser],
     synchronize: true,
-  }), UsersModule, ProfileUserModule],
+  }),
+  JwtModule.register({
+    global : true,
+    secret:  process.env.JWT_SECRET,
+    secretOrPrivateKey : process.env.JWT_SECRET,
+    signOptions: { expiresIn: '1h' },
+  }),
+  UsersModule, ProfileUserModule, AuthModule],
   controllers: [],
   providers: [],
 })
