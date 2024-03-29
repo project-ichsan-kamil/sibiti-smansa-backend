@@ -6,7 +6,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { logErrorMessage } from 'src/utils/log';
 
 @Injectable()
 export class AuthService {
@@ -66,7 +65,6 @@ export class AuthService {
             // Check if password is correct
             const isPasswordValid = await this.validatePassword(user, password);
             if (!isPasswordValid) {
-                logErrorMessage("Invalid Password")
                 throw new HttpException({
                     errorField: true,
                     nameField: 'password',
@@ -77,7 +75,6 @@ export class AuthService {
 
             // Check if the user is verified
             if (!user.isVerified) {
-                logErrorMessage("User is not verified")
                 throw new HttpException('User is not verified', HttpStatus.UNAUTHORIZED);
             }
 
@@ -90,7 +87,6 @@ export class AuthService {
                 role : user.role
             };
         } catch (error) {
-            logErrorMessage("Login failed")
             throw error;
         }
     }

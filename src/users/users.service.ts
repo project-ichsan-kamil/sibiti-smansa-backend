@@ -5,7 +5,6 @@ import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import { ProfileUserService } from 'src/profile-user/profile-user.service';
 import { AuthService } from 'src/auth/auth.service';
-import { logErrorMessage } from 'src/utils/log';
 
 @Injectable()
 export class UsersService {
@@ -20,7 +19,6 @@ export class UsersService {
   async create(createUserDto: CreateUserDto) {
     const existUser = await this.findByEmail(createUserDto.email);
     if (existUser) {
-      logErrorMessage("email already exists")
       throw new HttpException({
         errorField: true,
         nameField: 'email',
@@ -46,8 +44,6 @@ export class UsersService {
       try {
         await this.authService.sendVerificationEmail(createdUser.email, token);
       } catch (emailError) {
-        // Jika pengiriman email gagal, batalkan pembuatan pengguna
-        logErrorMessage(`Error sending verification email:', ${emailError.message}`)
 
         // Hapus pengguna yang baru saja dibuat
         await this.usersRepository.delete(createdUser.id);
