@@ -21,7 +21,9 @@ export class UsersController {
 
   @Get()
   findAll() {
-    return this.usersService.findAll();
+    console.log("oke");
+    return {message : "Hello gais"};
+    // return this.usersService.findAll();
   }
 
   @Get(':id')
