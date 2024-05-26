@@ -12,20 +12,23 @@ export class User {
     @Column({length : 255})
     email : string;
 
-    @Column({length : 255, default : '123123'})
+    @Column({length : 255})
     password : string;
 
     @Column({default : false})
     isVerified : boolean;
 
-    @Column({default : 0})
-    role : number;
-
     @CreateDateColumn({ type: 'timestamp'})
     createdAt: Date;
 
+    @Column({default : "SYSTEM"})
+    createdBy : string;
+
     @UpdateDateColumn({ type: 'timestamp'})
     updatedAt: Date;
+
+    @Column({default : "SYSTEM"})
+    updatedBy : string;
 
     @BeforeInsert()
     generateProfileId() {
