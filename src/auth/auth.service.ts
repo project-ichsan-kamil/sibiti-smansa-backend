@@ -84,7 +84,7 @@ export class AuthService {
                 token: token, 
                 email : user.email,
                 username : user.username,
-                role : user.role
+                // role : user.role
             };
         } catch (error) {
             throw error;

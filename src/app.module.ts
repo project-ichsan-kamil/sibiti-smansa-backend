@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { User } from './users/entities/user.entity';
 import { ProfileUser } from './profile-user/entities/profile-user.entity';
 import { DataSource } from 'typeorm';
+import { ClassModule } from './class/class.module';
 
 @Module({
   imports: [
@@ -16,8 +17,8 @@ import { DataSource } from 'typeorm';
       port: 3306,
       username: 'root',
       password: 'root',
-      database: 'fotoin',
-      entities: [User, ProfileUser],
+      database: 'sibiti',
+      entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true,
     }),
     JwtModule.register({
@@ -28,6 +29,7 @@ import { DataSource } from 'typeorm';
     UsersModule,
     ProfileUserModule,
     AuthModule,
+    ClassModule,
   ],
   controllers: [],
   providers: [],
