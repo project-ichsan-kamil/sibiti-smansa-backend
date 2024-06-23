@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UsePipes, ValidationPipe } from '@nestjs/common';
 import { ClassService } from './class.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
@@ -18,9 +18,20 @@ export class ClassController {
         }
     }
 
+    @Get('search')
+    async searchByName(@Query('nama') nama: string) {
+        const result = await this.classService.searchByName(nama);
+        return {
+          statusCode: 200,
+          message: "Data berhasil ditemukan",
+          count : result.length,
+          data: result
+        };
+    }
+
     @Get(':id')
     async findOne(@Param('id') id: number) {
-        const result = await  this.classService.findOne(id);
+        const result = await this.classService.findOne(id);
         return {
           statusCode : 200,
           message : "Data berhasil ditemukan",
