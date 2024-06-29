@@ -3,11 +3,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from './users/users.module';
 import { ProfileUserModule } from './profile-user/profile-user.module';
-import { AuthModule } from './auth/auth.module';
-import { User } from './users/entities/user.entity';
-import { ProfileUser } from './profile-user/entities/profile-user.entity';
 import { DataSource } from 'typeorm';
 import { ClassModule } from './class/class.module';
+import { ExamModule } from './exam/exam.module';
 
 @Module({
   imports: [
@@ -28,8 +26,8 @@ import { ClassModule } from './class/class.module';
     }),
     UsersModule,
     ProfileUserModule,
-    AuthModule,
     ClassModule,
+    ExamModule,
   ],
   controllers: [],
   providers: [],

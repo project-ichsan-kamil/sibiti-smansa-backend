@@ -1,99 +1,67 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { User } from './entities/user.entity';
+import {
+  Injectable,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ProfileUserService } from 'src/profile-user/profile-user.service';
-import { AuthService } from 'src/auth/auth.service';
+import { hash } from 'bcrypt';
+import { Users } from './entities/user.entity';
+import { CreateUserDto } from './dto/create-user.dto';
+import { ProfileUser } from 'src/profile-user/entities/profile-user.entity';
 
 @Injectable()
-export class UsersService {
+export class UserService {
   constructor(
-    @InjectRepository(User)
-    private readonly usersRepository: Repository<User>,
-    private readonly userProfileService : ProfileUserService,
-    private readonly authService : AuthService,
+    @InjectRepository(Users)
+    private readonly usersRepository: Repository<Users>,
   ) {}
 
-  //create user
-  async create(createUserDto: CreateUserDto) {
-    const existUser = await this.findByEmail(createUserDto.email);
-    if (existUser) {
-      throw new HttpException({
-        errorField: true,
-        nameField: 'email',
-        errorAllert: false,
-        message: 'email already exists',
-      }, HttpStatus.BAD_REQUEST);
+  async createUser(createUserDto: CreateUserDto): Promise<any> {
+    const { username, password } = createUserDto;
+
+    // Check if email is already registered
+    const existingUser = await this.usersRepository.findOne({
+      where: { username },
+    });
+    if (existingUser) {
+      throw new HttpException('Username sudah terdaftar', HttpStatus.CONFLICT);
     }
 
-    const user = this.usersRepository.create(createUserDto)
-    
+    // Encrypt the password
+    const hashedPassword = await hash(password, 10);
+
+    const queryRunner =
+      this.usersRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
     try {
+      // Create user
+      const user = new Users();
+      user.username = username;
+      user.password = hashedPassword;
 
-      const createdUser = await this.usersRepository.save(user)
-      
-      const userProfile = await this.userProfileService.create({
-        userId: createdUser.id,
-        email : createdUser.email,
-        username : createdUser.username
-      });
+      const savedUser = await queryRunner.manager.save(user);
 
-      const token = await this.authService.generateToken(createdUser.id.toString());
+      // Create user profile
+      const userProfile = new ProfileUser();
+      userProfile.user = savedUser;
 
-      try {
-        await this.authService.sendVerificationEmail(createdUser.email, token);
-      } catch (emailError) {
+      await queryRunner.manager.save(userProfile);
+      await queryRunner.commitTransaction();
 
-        // Hapus pengguna yang baru saja dibuat
-        await this.usersRepository.delete(createdUser.id);
-        await this.userProfileService.remove(userProfile.id)
-
-        throw new HttpException({
-          message: 'Error sending verification email',
-        }, HttpStatus.INTERNAL_SERVER_ERROR);
-        
-      }
-
-      return createdUser;
+      return savedUser;
     } catch (error) {
-      throw error;
+      console.log(error);
+
+      await queryRunner.rollbackTransaction();
+      throw new HttpException(
+        'Error creating user',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    } finally {
+      await queryRunner.release();
     }
   }
-
-  //get all user
-  async findAll(): Promise<User[]> {
-    const users = await this.usersRepository.find();
-    
-    if (!users.length) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-    }
-    return this.usersRepository.find();
-  }
-
-  //get user by id
-  async findById(id: number): Promise<User> {
-    const user = await this.usersRepository.findOne({ where: { id } });
-
-    if (!user) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-    }
-
-    return user;
-  }
-
-  async remove(id: number) {
-    try {
-      await this.usersRepository.delete(id);
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async findByEmail( email : string){
-    return await this.usersRepository.findOne({where : {email}})
-  }
-
-
-
 }

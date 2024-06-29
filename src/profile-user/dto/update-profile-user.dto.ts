@@ -1,20 +1,32 @@
-import { IsNotEmpty } from "class-validator";
+import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { Class } from 'src/class/entities/class.entity';
 
-export class UpdateProfileUserDto {
-    @IsNotEmpty()
-    readonly username : string;
+export class UpdateProfileDto {
+    @IsOptional()
+    @IsEmail()
+    email: string;
 
-    @IsNotEmpty()
-    readonly email : string;
+    @IsOptional()
+    @IsString({ each: true })
+    class: Class[];
 
-    @IsNotEmpty()
-    userId : number;
-    
-    noHp : string;
-    sekolah : string;
-    provinsi : string;
-    kota : string;
-    kelurahan : string;
-    createdAt: Date;
-    updatedAt: Date;
+    @IsOptional()
+    @IsString()
+    fotoProfile: string;
+
+    @IsOptional()
+    @IsString()
+    noHp: string;
+
+    @IsOptional()
+    @IsString()
+    provinsi: string;
+
+    @IsOptional()
+    @IsString()
+    kota: string;
+
+    @IsOptional()
+    @IsString()
+    kelurahan: string;
 }

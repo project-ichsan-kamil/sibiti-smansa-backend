@@ -1,48 +1,19 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { UsersService } from './users.service';
+import { Controller, Post, Body, UsePipes, ValidationPipe } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UsePipes } from '@nestjs/common/decorators';
-import { ValidationPipe } from '@nestjs/common/pipes';
+import { UserService } from './users.service';
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+    constructor(private readonly userService: UserService) {}
 
-  @Post()
-  @UsePipes(new ValidationPipe())
-  async create(@Body() createUserDto: CreateUserDto) {
-    try {
-      const user = await this.usersService.create(createUserDto);
-      return user;
-    } catch (error) {
-      throw error
+    @Post()
+    @UsePipes(ValidationPipe)
+    async createUser(@Body() createUserDto: CreateUserDto) {
+        const result =  await this.userService.createUser(createUserDto);
+        return {
+            statusCode: 201,
+            message: 'User berhasil dibuat',
+            data: result,
+        }
     }
-  }
-
-  @Get()
-  findAll() {
-    console.log("oke");
-    return {message : "Hello gais"};
-    // return this.usersService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: number) {
-    return this.usersService.findById(id);
-  }
-
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-  //   return this.usersService.update(+id, updateUserDto);
-  // }
-
-  @Delete(':id')
-  async remove(@Param('id') id: string) {
-    try {
-      await this.usersService.remove(+id);
-      return { message : "User delete successfully"}
-    } catch (error) {
-      throw error;
-    }
-  }
 }

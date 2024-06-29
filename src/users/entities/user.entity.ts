@@ -1,23 +1,27 @@
-import { Column, Entity, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, BeforeInsert } from "typeorm";
-import * as bcrypt from 'bcrypt';
+import { ProfileUser } from 'src/profile-user/entities/profile-user.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, BeforeInsert, OneToOne } from 'typeorm';
 
 @Entity()
-export class User {
-    @PrimaryGeneratedColumn({type : "bigint"})
+export class Users {
+    @PrimaryGeneratedColumn({ type: 'bigint'})
     id: number;
 
-    @Column({length : 255})
-    username : string;
+    @Column({ unique: true })
+    username: string;
 
-    @Column({length : 255})
-    email : string;
+    @Column()
+    password: string;
 
-    @Column({length : 255})
-    password : string;
+    @Column({ default: false })
+    isVerified: boolean;
 
-    @Column({default : false})
-    isVerified : boolean;
+    @Column({ default: false })
+    emailVerified: boolean;
 
+    @OneToOne(() => ProfileUser, profile => profile.user)
+    profile: ProfileUser;
+
+ 
     @CreateDateColumn({ type: 'timestamp'})
     createdAt: Date;
 
@@ -34,9 +38,5 @@ export class User {
     generateProfileId() {
         this.id = new Date().valueOf();
     }
-
-    @BeforeInsert()
-    async hashPassword() {
-        this.password = await bcrypt.hash(this.password, 10)
-    }
 }
+
