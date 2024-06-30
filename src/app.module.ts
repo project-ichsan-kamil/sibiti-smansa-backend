@@ -6,6 +6,7 @@ import { ProfileUserModule } from './profile-user/profile-user.module';
 import { DataSource } from 'typeorm';
 import { ClassModule } from './class/class.module';
 import { ExamModule } from './exam/exam.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ExamModule } from './exam/exam.module';
     ProfileUserModule,
     ClassModule,
     ExamModule,
+    AuthModule,
   ],
   controllers: [],
   providers: [],
