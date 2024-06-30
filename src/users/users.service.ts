@@ -20,7 +20,7 @@ export class UserService {
     private readonly usersRepository: Repository<Users>,
   ) {}
 
-  async createUser(createUserDto: CreateUserDto, userId: number): Promise<any> {
+  async createUser(createUserDto: CreateUserDto, userUpdate: number): Promise<any> {
     const { username, password } = createUserDto;
 
     this.logger.log('[createUser] Checking if username is already registered');
@@ -45,7 +45,7 @@ export class UserService {
       const user = new Users();
       user.username = username;
       user.password = hashedPassword;
-      user.updatedBy = (await this.usersRepository.findOne({ where: { id: userId } })).username;
+      user.updatedBy = (await this.usersRepository.findOne({ where: { id: userUpdate } })).username;
 
       const savedUser = await queryRunner.manager.save(user);
       this.logger.log('[createUser] User created successfully');
@@ -71,4 +71,41 @@ export class UserService {
       await queryRunner.release();
     }
   }
+
+  async verifyUser(verifyUserId: number, userUpdate: number): Promise<any> {    // TODO : check is admin
+    this.logger.log(`[verifyUser] Verifying user with ID ${verifyUserId}`);
+    const user = await this.usersRepository.findOne({ where: { id: verifyUserId } });
+
+    if (!user) {
+      this.logger.error(`[verifyUser] User with ID ${verifyUserId} not found`);
+      throw new HttpException('User tidak ditemukan', HttpStatus.NOT_FOUND);
+    }
+
+    user.updatedBy = (await this.usersRepository.findOne({ where: { id: userUpdate } })).username;
+    user.isVerified = true; 
+
+    await this.usersRepository.save(user);
+    this.logger.log(`[verifyUser] User with ID ${verifyUserId} verified successfully`);
+
+    return user;
+  }
+
+  async inActiveUser(inActiveUserId: number, userUpdate: number): Promise<any> {    // TODO : check is admin
+    this.logger.log(`[inActiveUser] Inactive user with ID ${inActiveUserId}`);
+    const user = await this.usersRepository.findOne({ where: { id: inActiveUserId } });
+
+    if (!user) {
+      this.logger.error(`[inActiveUser] User with ID ${inActiveUserId} not found`);
+      throw new HttpException('User tidak ditemukan', HttpStatus.NOT_FOUND);
+    }
+
+    user.updatedBy = (await this.usersRepository.findOne({ where: { id: userUpdate } })).username;
+    user.isVerified = false; 
+
+    await this.usersRepository.save(user);
+    this.logger.log(`[inActiveUser] User with ID ${inActiveUserId} inactive successfully`);
+
+    return user;
+  }
+
 }
