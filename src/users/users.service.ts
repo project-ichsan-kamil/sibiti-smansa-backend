@@ -20,7 +20,7 @@ export class UserService {
     private readonly usersRepository: Repository<Users>,
   ) {}
 
-  async createUser(createUserDto: CreateUserDto): Promise<any> {
+  async createUser(createUserDto: CreateUserDto, userId: number): Promise<any> {
     const { username, password } = createUserDto;
 
     this.logger.log('[createUser] Checking if username is already registered');
@@ -45,6 +45,7 @@ export class UserService {
       const user = new Users();
       user.username = username;
       user.password = hashedPassword;
+      user.updatedBy = (await this.usersRepository.findOne({ where: { id: userId } })).username;
 
       const savedUser = await queryRunner.manager.save(user);
       this.logger.log('[createUser] User created successfully');

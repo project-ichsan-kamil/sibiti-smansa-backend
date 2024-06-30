@@ -10,8 +10,9 @@ export class UsersController {
     @Post()
     @UseGuards(JwtAuthGuard)
     @UsePipes(ValidationPipe)
-    async createUser(@Body() createUserDto: CreateUserDto){
-        const result =  await this.userService.createUser(createUserDto);
+    async createUser(@Body() createUserDto: CreateUserDto, @Req() req){
+        const userId = req.user.userId;
+        const result = await this.userService.createUser(createUserDto, userId);
         return {
             statusCode: 201,
             message: 'User berhasil dibuat',
