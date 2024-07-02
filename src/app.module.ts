@@ -7,6 +7,7 @@ import { DataSource } from 'typeorm';
 import { ClassModule } from './class/class.module';
 import { ExamModule } from './exam/exam.module';
 import { AuthModule } from './auth/auth.module';
+import { UserRoleModule } from './user-role/user-role.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { AuthModule } from './auth/auth.module';
     ClassModule,
     ExamModule,
     AuthModule,
+    UserRoleModule,
   ],
   controllers: [],
   providers: [],

@@ -1,5 +1,6 @@
 import { ProfileUser } from 'src/profile-user/entities/profile-user.entity';
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, BeforeInsert, OneToOne } from 'typeorm';
+import { UserRole } from 'src/user-role/entities/user-role.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, BeforeInsert, OneToOne, OneToMany } from 'typeorm';
 
 @Entity()
 export class Users {
@@ -21,7 +22,9 @@ export class Users {
     @OneToOne(() => ProfileUser, profile => profile.user)
     profile: ProfileUser;
 
- 
+    @OneToMany(() => UserRole, userRole => userRole.user)
+    userRoles: UserRole[];
+
     @CreateDateColumn({ type: 'timestamp'})
     createdAt: Date;
 
