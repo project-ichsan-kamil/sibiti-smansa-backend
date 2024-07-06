@@ -24,7 +24,7 @@ export class UserService {
 
   ) {}
 
-  async createUser(createUserDto: CreateUserDto, currentUser: any): Promise<any> {
+  async createUser(createUserDto: CreateUserDto, currentUser: any): Promise<any> {    // TODO : check is admin
     const { username, password, email, noHp, fullName } = createUserDto;
 
     this.logger.log('[createUser] Checking if username is already registered');
@@ -82,7 +82,7 @@ export class UserService {
     }
   }
 
-  async updateUserProfile(userId: number, updateUserDto: UpdateUserDto, currentUser: any): Promise<any> {
+  async updateUserProfile(userId: number, updateUserDto: UpdateUserDto, currentUser: any): Promise<any> {   // TODO : check is admin
     this.logger.log(`[updateUserProfile] Updating profile for user with ID ${userId}`);
     
     const user = await this.usersRepository.findOne({
@@ -234,5 +234,33 @@ export class UserService {
     this.logger.log(`[deleteUser] User with ID ${userId} deleted successfully`);
 
     return user;
+  }
+
+  async searchUserByFullName(fullName: string): Promise<any> {
+    this.logger.log(`[searchUserByFullName] Searching users with full name: ${fullName}`);
+    
+    const users = await this.usersRepository.createQueryBuilder('user')
+      .leftJoinAndSelect('user.profile', 'profile')
+      .where('profile.fullName LIKE :fullName', { fullName: `%${fullName}%` })
+      .andWhere('user.statusData = :statusData', { statusData: true })
+      .select([
+        'user.id',
+        'user.username',
+        'profile.encrypt',
+        'profile.fullName',
+        'profile.email',
+        'profile.noHp'
+      ])
+      .getMany();
+      
+    // Dekripsi data
+    users.forEach(user => {
+      if (user.profile && user.profile.encrypt) {
+        const decryptedData = this.encryptionService.decrypt(user.profile.encrypt);
+        user.profile.encrypt = decryptedData;
+      }
+    });
+
+    return users;
   }
 }

@@ -17,6 +17,7 @@ import { UserService } from './users.service';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt.auth.guard';
 import { verifyUserDto } from './dto/verify-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { count } from 'console';
 
 @Controller('users')
 export class UsersController {
@@ -115,6 +116,19 @@ export class UsersController {
     return {
       statusCode: 200,
       message: 'User berhasil dihapus',
+      data: result,
+    };
+  }
+
+  //create function search user by username
+  @Get('search/:fullName')
+  @UseGuards(JwtAuthGuard)
+  async searchUserByFullName(@Param('fullName') fullName: string) {
+    const result = await this.userService.searchUserByFullName(fullName);
+    return {
+      statusCode: 200,
+      message: 'User berhasil ditemukan',
+      count : result.length,
       data: result,
     };
   }
