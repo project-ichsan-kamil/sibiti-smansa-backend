@@ -8,6 +8,7 @@ import { ClassModule } from './class/class.module';
 import { ExamModule } from './exam/exam.module';
 import { AuthModule } from './auth/auth.module';
 import { UserRoleModule } from './user-role/user-role.module';
+import { EncryptionService } from './common/encryption/encryption.service';
 
 @Module({
   imports: [
@@ -34,7 +35,7 @@ import { UserRoleModule } from './user-role/user-role.module';
     UserRoleModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [EncryptionService],
 })
 export class AppModule {
   constructor(private dataSource: DataSource) {}

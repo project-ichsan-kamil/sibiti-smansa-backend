@@ -21,26 +21,34 @@ export class AuthService {
     }
     return null;
   }
-
   async login(loginDto: LoginDto) {
     const { username, password } = loginDto;
-    const user = await this.usersRepository.findOne({ where: { username } });
-
+    const user = await this.usersRepository.findOne({
+      where: { username },
+      relations: ['profile'],
+    });
+  
     if (!user) {
       throw new HttpException('User tidak ditemukan', HttpStatus.NOT_FOUND);
     }
-
+  
     const isValidUser = await this.validateUser(username, password);
-
+  
     if (!isValidUser) {
       throw new HttpException('Password tidak valid', HttpStatus.UNAUTHORIZED);
     }
-
+  
     if (!user.isVerified) {
       throw new HttpException('Akun belum terverifikasi', HttpStatus.FORBIDDEN);
     }
-
-    const payload = { username: user.username, sub: user.id };
+  
+    const payload = {
+      id: user.id,
+      username: user.username,
+      email : user.profile?.email, // Ensure profile is loaded and has email
+      fullName: user.profile?.fullName, // Ensure profile is loaded and has fullName
+    };
+  
     return {
       token: this.jwtService.sign(payload),
     };

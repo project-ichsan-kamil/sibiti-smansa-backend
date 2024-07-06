@@ -7,7 +7,7 @@ export class Users {
     @PrimaryGeneratedColumn({ type: 'bigint'})
     id: number;
 
-    @Column({ unique: true })
+    @Column()
     username: string;
 
     @Column()
@@ -24,6 +24,9 @@ export class Users {
 
     @OneToMany(() => UserRole, userRole => userRole.user)
     userRoles: UserRole[];
+
+    @Column({default : true})
+    statusData : boolean;
 
     @CreateDateColumn({ type: 'timestamp'})
     createdAt: Date;

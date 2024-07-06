@@ -8,6 +8,9 @@ export class ProfileUser {
     id: number;
 
     @Column()
+    fullName: string;
+
+    @Column()
     userId: number;
 
     @Column({ nullable: true })
@@ -35,6 +38,12 @@ export class ProfileUser {
     @OneToOne(() => Users, user => user.profile)
     @JoinColumn()
     user: Users;
+
+    @Column()
+    encrypt : string;
+
+    @Column({default : true})
+    statusData : boolean;
 
     @CreateDateColumn({ type: 'timestamp'})
     createdAt: Date;
