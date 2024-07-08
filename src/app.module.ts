@@ -9,6 +9,7 @@ import { ExamModule } from './exam/exam.module';
 import { AuthModule } from './auth/auth.module';
 import { UserRoleModule } from './user-role/user-role.module';
 import { EncryptionService } from './common/encryption/encryption.service';
+import { SubjectModule } from './subject/subject.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { EncryptionService } from './common/encryption/encryption.service';
     ExamModule,
     AuthModule,
     UserRoleModule,
+    SubjectModule,
   ],
   controllers: [],
   providers: [EncryptionService],
