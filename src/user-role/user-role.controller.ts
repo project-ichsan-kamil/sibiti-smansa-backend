@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Param, UsePipes, ValidationPipe, UseGuards, Delete, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UsePipes, ValidationPipe, UseGuards, Delete, Patch, Req, Query } from '@nestjs/common';
 import { UserRoleService } from './user-role.service';
 import { CreateUserRoleDto } from './dto/create-user-role.dto';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt.auth.guard';
+import { count } from 'console';
 
 @Controller('user-role')
 export class UserRoleController {
@@ -10,33 +11,35 @@ export class UserRoleController {
   @Post()
   @UseGuards(JwtAuthGuard)
   @UsePipes(ValidationPipe)
-  async create(@Body() createUserRoleDto: CreateUserRoleDto) {
-    const result = await this.userRoleService.create(createUserRoleDto);
+  async create(@Body() createUserRoleDto: CreateUserRoleDto, @Req() req){
+    const currentUser = req.user;
+    const result = await this.userRoleService.create(createUserRoleDto, currentUser);
     return {
       statusCode: 201,
       message: 'Data berhasil disimpan',
-      data: result,
-    }
-  }
-
-  @Get('role/:role')
-  @UseGuards(JwtAuthGuard)
-  async findAllByRole(@Param('role') role: string) {
-    const result = await this.userRoleService.findAllByRole(role);
-    return {
-      statusCode: 200,
-      message: 'Data berhasil ditemukan',
-      data: result,
     }
   }
 
   @Delete(':userRoleId')
   @UseGuards(JwtAuthGuard)
-  async deleteRole(@Param('userRoleId') userRoleId: number) {
-    const result = await this.userRoleService.deleteRole(userRoleId);
+  async deleteRole(@Param('userRoleId') userRoleId: number, @Req() req) {
+    const currentUser = req.user;
+    const result = await this.userRoleService.deleteRole(userRoleId, currentUser);
     return {
       statusCode: 200,
       message: 'Data berhasil dihapus',
+      data: result,
+    }
+  }
+
+  @Get('search')
+  @UseGuards(JwtAuthGuard)
+  async searchByRoleAndName(@Query('role') role: string, @Query('name') name: string){
+    const result = await this.userRoleService.searchByRoleAndName(role, name );
+    return {
+      statusCode: 200,
+      message: 'Data berhasil ditemukan',
+      count: result.length,
       data: result,
     }
   }

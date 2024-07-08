@@ -90,6 +90,18 @@ export class UsersController {
     };
   }
 
+  @Get('user-verified')
+  @UseGuards(JwtAuthGuard)
+  async getVerifiedUsers() {
+    const result = await this.userService.getVerifiedUsers();
+    return {
+      statusCode: 200,
+      message: 'User berhasil ditemukan',
+      count: result.length,
+      data: result,
+    };
+  }
+
   @Patch('/profile-update/:userId')
   @UseGuards(JwtAuthGuard)
   @UsePipes(ValidationPipe)
