@@ -12,6 +12,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { ProfileUser } from 'src/profile-user/entities/profile-user.entity';
 import { EncryptionService } from 'src/common/encryption/encryption.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { EmailService } from 'src/common/email/email.service';
 
 @Injectable()
 export class UserService {
@@ -20,7 +21,8 @@ export class UserService {
   constructor(
     @InjectRepository(Users)
     private readonly usersRepository: Repository<Users>,
-    private readonly encryptionService: EncryptionService
+    private readonly encryptionService: EncryptionService,
+    private readonly emailService: EmailService,
 
   ) {}
 
@@ -29,7 +31,7 @@ export class UserService {
 
     this.logger.log('[createUser] Checking if username is already registered');
     const existingUser = await this.usersRepository.findOne({
-      where: { username },
+      where: { username, statusData: true },
     });
 
     if (existingUser) {
@@ -117,7 +119,7 @@ export class UserService {
     }    
     
     userProfile.updatedBy = currentUser.fullName;
-  
+    await this.usersRepository.manager.save(userProfile);
     await this.usersRepository.save(user);
     
     this.logger.log(`[updateUserProfile] Profile for user with ID ${userId} updated successfully`);
@@ -128,7 +130,10 @@ export class UserService {
   
   async verifyUser(verifyUserId: number, currentUser: any): Promise<any> {    // TODO : check is admin
     this.logger.log(`[verifyUser] Verifying user with ID ${verifyUserId}`);
-    const user = await this.usersRepository.findOne({ where: { id: verifyUserId } });
+    const user = await this.usersRepository.findOne({
+      where: { id: verifyUserId },
+      relations: ['profile'],
+    });
 
     if (!user) {
       this.logger.error(`[verifyUser] User with ID ${verifyUserId} not found`);
@@ -139,8 +144,13 @@ export class UserService {
     user.isVerified = true; 
 
     await this.usersRepository.save(user);
-    this.logger.log(`[verifyUser] User with ID ${verifyUserId} verified successfully`);
+    const passwordEncrypted = this.encryptionService.decrypt(user.profile.encrypt);
+    console.log(passwordEncrypted);
+    
 
+    this.logger.log(`[verifyUser] Sending email to user with ID ${verifyUserId}`);
+    await this.emailService.sendPassword(user.profile.email, passwordEncrypted);
+    this.logger.log(`[verifyUser] User with ID ${verifyUserId} verified successfully`);
     return user;
   }
 

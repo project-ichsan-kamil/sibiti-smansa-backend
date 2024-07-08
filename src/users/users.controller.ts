@@ -36,19 +36,18 @@ export class UsersController {
     };
   }
 
-  @Post('verify')
+  @Post('verify/:userId')
   @UseGuards(JwtAuthGuard)
   @UsePipes(ValidationPipe)
-  async verifyUser(@Body() verifyUserDto: verifyUserDto, @Req() req) {
+  async verifyUser(@Param('userId', ParseIntPipe) userId: number, @Req() req) {
     const currentUser = req.user;
     const result = await this.userService.verifyUser(
-      verifyUserDto.userId,
+      userId,
       currentUser,
     );
     return {
       statusCode: 200,
       message: 'User berhasil diverifikasi',
-      data: result,
     };
   }
 
@@ -91,11 +90,11 @@ export class UsersController {
     };
   }
 
-  @Patch('/profile-update/:id')
+  @Patch('/profile-update/:userId')
   @UseGuards(JwtAuthGuard)
   @UsePipes(ValidationPipe)
   async updateUserProfile(
-    @Param('id', ParseIntPipe) userId: number,
+    @Param('userId', ParseIntPipe) userId: number,
     @Body() updateUserDto: UpdateUserDto,
     @Req() req
   ): Promise<any> {
@@ -108,9 +107,9 @@ export class UsersController {
     };
   }
 
-  @Delete('delete/:id')
+  @Delete('delete/:userId')
   @UseGuards(JwtAuthGuard)
-  async deleteUser(@Param('id', ParseIntPipe) userId: number, @Req() req) {
+  async deleteUser(@Param('userId', ParseIntPipe) userId: number, @Req() req) {
     const currentUser = req.user;
     const result = await this.userService.deleteUser(userId, currentUser);
     return {
