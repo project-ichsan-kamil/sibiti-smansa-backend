@@ -11,6 +11,6 @@ export class SubjectService {
     ) {}
 
     public async getAllSubjects(): Promise<Subject[]> {
-        return await this.subjectRepository.find();
+        return await this.subjectRepository.find({ where: { statusData: true } });
     }
 }
