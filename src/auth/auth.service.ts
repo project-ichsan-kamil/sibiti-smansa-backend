@@ -1,4 +1,4 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -8,49 +8,62 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(Users)
     private readonly usersRepository: Repository<Users>,
     private readonly jwtService: JwtService,
   ) {}
 
-  async validateUser(username: string, password: string): Promise<Users> {
-    const user = await this.usersRepository.findOne({ where: { username } });
-    if (user && (await bcrypt.compare(password, user.password))) {
-      return user;
-    }
-    return null;
-  }
   async login(loginDto: LoginDto) {
-    const { username, password } = loginDto;
+    this.logger.log('[login] Start');
+    const { email, password } = loginDto;
+
     const user = await this.usersRepository.findOne({
-      where: { username },
+      where: { email },
       relations: ['profile'],
     });
-  
+
     if (!user) {
+      this.logger.error('[login] User not found');
       throw new HttpException('User tidak ditemukan', HttpStatus.NOT_FOUND);
     }
-  
-    const isValidUser = await this.validateUser(username, password);
-  
+
+    const isValidUser = await this.validateUser(email, password);
+
     if (!isValidUser) {
+      this.logger.error('[login] Invalid password');
       throw new HttpException('Password tidak valid', HttpStatus.UNAUTHORIZED);
     }
-  
+
     if (!user.isVerified) {
+      this.logger.error('[login] Account not verified');
       throw new HttpException('Akun belum terverifikasi', HttpStatus.FORBIDDEN);
     }
-  
+
     const payload = {
       id: user.id,
-      username: user.username,
-      email : user.profile?.email, // Ensure profile is loaded and has email
-      fullName: user.profile?.fullName, // Ensure profile is loaded and has fullName
+      email: user.email,
+      fullName: user.profile?.fullName,
     };
-  
+
+    const token = this.jwtService.sign(payload);
+    this.logger.log(`[login] Successfully logged in: ${user.profile?.fullName}`);
+
     return {
-      token: this.jwtService.sign(payload),
+      token,
     };
+  }
+
+  async validateUser(email: string, password: string): Promise<Users> {
+    const user = await this.usersRepository.findOne({ where: { email } });
+
+    if (user && (await bcrypt.compare(password, user.password))) {
+      this.logger.log('[validateUser] Password is valid');
+      return user;
+    }
+    this.logger.error('[validateUser] Invalid password');
+    return null;
   }
 }
