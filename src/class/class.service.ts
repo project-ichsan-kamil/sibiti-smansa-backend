@@ -29,54 +29,54 @@ export class ClassService {
         return classEntity;
     }
 
-    async create(createClassDto: CreateClassDto): Promise<Class> {
-        this.logger.log('[create] Creating a new class');
-        const upperCaseNama = createClassDto.nama.trim().replace(/\s+/g, ' ').toUpperCase();
+    // async create(createClassDto: CreateClassDto): Promise<Class> {
+    //     this.logger.log('[create] Creating a new class');
+    //     const upperCaseNama = createClassDto.nama.trim().replace(/\s+/g, ' ').toUpperCase();
 
-        const existingClass = await this.classRepository.findOne({ where: { nama: upperCaseNama, statusData: true } });
+    //     const existingClass = await this.classRepository.findOne({ where: { nama: upperCaseNama, statusData: true } });
 
-        if (existingClass) {
-            this.logger.warn(`[create] Class with name ${upperCaseNama} already exists`);
-            throw new ConflictException(`Kelas dengan nama ${upperCaseNama} sudah terdaftar.`);
-        }
+    //     if (existingClass) {
+    //         this.logger.warn(`[create] Class with name ${upperCaseNama} already exists`);
+    //         throw new ConflictException(`Kelas dengan nama ${upperCaseNama} sudah terdaftar.`);
+    //     }
 
-        const newClass = this.classRepository.create({
-            ...createClassDto,
-            nama: upperCaseNama,
-            statusData: true,
-        });
+    //     const newClass = this.classRepository.create({
+    //         ...createClassDto,
+    //         nama: upperCaseNama,
+    //         statusData: true,
+    //     });
 
-        this.logger.log(`[create] Class with name ${upperCaseNama} created successfully`);
-        return this.classRepository.save(newClass);
-    }
+    //     this.logger.log(`[create] Class with name ${upperCaseNama} created successfully`);
+    //     return this.classRepository.save(newClass);
+    // }
 
-    async update(id: number, updateClassDto: UpdateClassDto): Promise<any> {
-        this.logger.log(`[update] Updating class with id ${id}`);
-        const existingClass = await this.classRepository.findOne({ where: { id, statusData: true } });
-        if (!existingClass) {
-            this.logger.warn(`[update] Class with id ${id} not found`);
-            throw new NotFoundException(`Kelas tidak ditemukan`);
-        }
+    // async update(id: number, updateClassDto: UpdateClassDto): Promise<any> {
+    //     this.logger.log(`[update] Updating class with id ${id}`);
+    //     const existingClass = await this.classRepository.findOne({ where: { id, statusData: true } });
+    //     if (!existingClass) {
+    //         this.logger.warn(`[update] Class with id ${id} not found`);
+    //         throw new NotFoundException(`Kelas tidak ditemukan`);
+    //     }
 
-        if (updateClassDto.nama) {
-            updateClassDto.nama = updateClassDto.nama.trim().replace(/\s+/g, ' ').toUpperCase();
-        }
+    //     if (updateClassDto.nama) {
+    //         updateClassDto.nama = updateClassDto.nama.trim().replace(/\s+/g, ' ').toUpperCase();
+    //     }
 
-        this.logger.log(`[update] Class with id ${id} updated successfully`);
-        return await this.classRepository.update(id, updateClassDto);
-    }
+    //     this.logger.log(`[update] Class with id ${id} updated successfully`);
+    //     return await this.classRepository.update(id, updateClassDto);
+    // }
 
-    async remove(id: number): Promise<void> {
-        this.logger.log(`[remove] Removing class with id ${id}`);
-        const existingClass = await this.classRepository.findOne({ where: { id, statusData: true } });
-        if (!existingClass) {
-            this.logger.warn(`[remove] Class with id ${id} not found`);
-            throw new NotFoundException(`Kelas tidak ditemukan`);
-        }
+    // async remove(id: number): Promise<void> {
+    //     this.logger.log(`[remove] Removing class with id ${id}`);
+    //     const existingClass = await this.classRepository.findOne({ where: { id, statusData: true } });
+    //     if (!existingClass) {
+    //         this.logger.warn(`[remove] Class with id ${id} not found`);
+    //         throw new NotFoundException(`Kelas tidak ditemukan`);
+    //     }
 
-        await this.classRepository.update(id, { statusData: false });
-        this.logger.log(`[remove] Class with id ${id} marked as inactive`);
-    }
+    //     await this.classRepository.update(id, { statusData: false });
+    //     this.logger.log(`[remove] Class with id ${id} marked as inactive`);
+    // }
 
     async searchByName(nama: string): Promise<Class[]> {
         this.logger.log(`[searchByName] Searching classes with name containing ${nama}`);

@@ -39,34 +39,34 @@ export class ClassController {
         }
     }
 
-    @Post()
-    @UsePipes(new ValidationPipe({ transform: true }))
-    async create(@Body() createClassDto: CreateClassDto) {
-        const result = await this.classService.create(createClassDto);
-        return {
-          statusCode : 200,
-          message : "Data berhasil disimpan",
-          data : result
-        }
-    }
+    // @Post()
+    // @UsePipes(new ValidationPipe({ transform: true }))
+    // async create(@Body() createClassDto: CreateClassDto) {
+    //     const result = await this.classService.create(createClassDto);
+    //     return {
+    //       statusCode : 200,
+    //       message : "Data berhasil disimpan",
+    //       data : result
+    //     }
+    // }
 
-    @Patch(':id')
-    async update(@Param('id') id: number, @Body() updateClassDto: UpdateClassDto) {
-        const result = await this.classService.update(id, updateClassDto);
-        return {
-            statusCode: 200,
-            message: "Data berhasil diperbarui",
-            data: result
-        };
-    }
+    // @Patch(':id')
+    // async update(@Param('id') id: number, @Body() updateClassDto: UpdateClassDto) {
+    //     const result = await this.classService.update(id, updateClassDto);
+    //     return {
+    //         statusCode: 200,
+    //         message: "Data berhasil diperbarui",
+    //         data: result
+    //     };
+    // }
 
-    @Delete(':id')
-    async remove(@Param('id') id: number) {
-        const result = await this.classService.remove(id);
-        return {
-          statusCode: 200,
-          message: "Data berhasil dihapus",
-          data: result
-        };
-    }
+    // @Delete(':id')
+    // async remove(@Param('id') id: number) {
+    //     const result = await this.classService.remove(id);
+    //     return {
+    //       statusCode: 200,
+    //       message: "Data berhasil dihapus",
+    //       data: result
+    //     };
+    // }
 }
