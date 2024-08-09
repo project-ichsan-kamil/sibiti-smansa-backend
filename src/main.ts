@@ -3,6 +3,8 @@ import { AppModule } from './app.module';
 import * as dotenv from 'dotenv';
 import { SubjectSeeder } from './seeder/SubjectSeeder';
 import * as cookieParser from 'cookie-parser';
+import { ClassSeeder } from './seeder/ClassSeeder';
+import { SeederModule } from './seeder/seeder.module';
 
 async function bootstrap() {
   dotenv.config();
@@ -18,8 +20,10 @@ async function bootstrap() {
   });
 
   //seeder
-  const subjectSeeder = app.get(SubjectSeeder);
+  const subjectSeeder = app.select(SeederModule).get(SubjectSeeder);
   await subjectSeeder.run();
+  const classSeeder = app.select(SeederModule).get(ClassSeeder);
+  await classSeeder.run();
 
   
   await app.listen(3001);

@@ -24,8 +24,8 @@ export class ClassSeeder {
         sections.forEach(section => {
           classes.push({
             id: idCounter,
-            nama: `${grade}${section}`,
-            kelas: grade,
+            name: `${grade}${section}`,
+            class: grade,
             status: 1, // Assuming status 1 means active
             statusData: true,
             createdAt: new Date(),
