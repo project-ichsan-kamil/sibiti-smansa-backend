@@ -61,7 +61,7 @@ export class UsersController {
         result.length > 0
           ? 'User(s) berhasil diverifikasi'
           : 'Tidak ada pengguna yang diverifikasi',
-      count : result.length,
+      count: result.length,
       verifiedUsers: result,
     };
   }
@@ -69,12 +69,21 @@ export class UsersController {
   @Post('unverify')
   @UseGuards(JwtAuthGuard)
   @UsePipes(ValidationPipe)
-  async unverifyUser(@Query('userId') userId: number, @Req() req) {
+  async unverifyUsers(
+    @Query('userIds', new ParseArrayPipe({ items: Number, separator: ',' }))
+    userIds: number[],
+    @Req() req,
+  ) {
     const currentUser = req.user;
-    const result = await this.userService.inActiveUser(userId, currentUser);
+    const result = await this.userService.inActivateUsers(userIds, currentUser);
+
     return {
       statusCode: 200,
-      message: 'User berhasil di nonaktifkan',
+      message:
+        result.length > 0
+          ? 'User(s) berhasil dinonaktifkan'
+          : 'Tidak ada pengguna yang dinonaktifkan',
+      count : result.length,
       data: result,
     };
   }

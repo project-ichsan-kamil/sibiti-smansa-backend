@@ -157,39 +157,39 @@ export class UserService {
     return verifiedUsers;
   }
   
-  
 
-  async inActiveUser(inActiveUserId: number, currentUser: any): Promise<any> {
+  async inActivateUsers(inActiveUserIds: number[], currentUser: any): Promise<any[]> {
     const executor = `[${currentUser.fullName}]`;
-    this.logger.log(`${executor}[inActiveUser] Starting process to inactivate user with ID ${inActiveUserId}`);
-
-    this.logger.log(`${executor}[inActiveUser] Checking if current user is super admin`);
-    const isSuperAdmin = await this.userRoleService.isSuperAdmin(currentUser.id);
-    if (!isSuperAdmin) {
-      this.logger.error(`${executor}[inActiveUser] Current user is not super admin, aborting inactivation`);
-      throw new HttpException(
-        'Only super admin can inactivate a user',
-        HttpStatus.FORBIDDEN,
-      );
+    this.logger.log(`${executor}[inActivateUsers] Starting process to inactivate users with IDs: ${inActiveUserIds.join(', ')}`);
+  
+    // Memeriksa apakah pengguna saat ini adalah super admin menggunakan fungsi checkIfSuperAdmin
+    await this.checkIfSuperAdmin(currentUser);
+  
+    const inactivatedUsers = [];
+  
+    for (const inActiveUserId of inActiveUserIds) {
+      const user = await this.usersRepository.findOne({
+        where: { id: inActiveUserId },
+      });
+  
+      if (!user) {
+        this.logger.warn(`${executor}[inActivateUsers] User with ID ${inActiveUserId} not found`);
+        continue; // Skip this user and continue with the next one
+      }
+  
+      user.updatedBy = currentUser.fullName;
+      user.isVerified = false;
+  
+      await this.usersRepository.save(user);
+      this.logger.log(`${executor}[inActivateUsers] User with ID ${inActiveUserId} inactivated successfully`);
+  
+      inactivatedUsers.push(user);
     }
-
-    const user = await this.usersRepository.findOne({
-      where: { id: inActiveUserId },
-    });
-
-    if (!user) {
-      this.logger.error(`${executor}[inActiveUser] User with ID ${inActiveUserId} not found`);
-      throw new HttpException('User tidak ditemukan', HttpStatus.NOT_FOUND);
-    }
-
-    user.updatedBy = currentUser.fullName;
-    user.isVerified = false;
-
-    await this.usersRepository.save(user);
-    this.logger.log(`${executor}[inActiveUser] User with ID ${inActiveUserId} inactivated successfully`);
-
-    return user;
+  
+    this.logger.log(`${executor}[inActivateUsers] Inactivation process completed for users with IDs: ${inActiveUserIds.join(', ')}`);
+    return inactivatedUsers;
   }
+  
 
   async getUnverifiedUsers(currentUser: any): Promise<any[]> {
     const executor = `[${currentUser.fullName}]`;
