@@ -194,7 +194,9 @@ export class UserService {
   async getUnverifiedUsers(currentUser: any): Promise<any[]> {
     const executor = `[${currentUser.fullName}]`;
     this.logger.log(`${executor}[getUnverifiedUsers] Retrieving unverified users`);
-
+  
+    await this.checkIfSuperAdmin(currentUser);
+  
     const unverifiedUsers = await this.usersRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.profile', 'profile')
@@ -202,15 +204,14 @@ export class UserService {
       .andWhere('user.statusData = :statusData', { statusData: true })
       .select([
         'user.id',
-        'user.username',
+        'user.email',
         'profile.encrypt',
         'profile.fullName',
-        'profile.email',
         'profile.noHp',
       ])
       .orderBy('GREATEST(user.updatedAt, profile.updatedAt)', 'DESC')
       .getMany();
-
+  
     unverifiedUsers.forEach((user) => {
       if (user.profile && user.profile.encrypt) {
         const decryptedData = this.encryptionService.decrypt(
@@ -219,24 +220,26 @@ export class UserService {
         user.profile.encrypt = decryptedData;
       }
     });
-
+  
     this.logger.log(`${executor}[getUnverifiedUsers] Retrieved ${unverifiedUsers.length} unverified users`);
     return unverifiedUsers;
   }
-
+  
   async getVerifiedUsers(currentUser: any): Promise<any[]> {
     const executor = `[${currentUser.fullName}]`;
     this.logger.log(`${executor}[getVerifiedUsers] Retrieving verified users`);
-
+  
+    await this.checkIfSuperAdmin(currentUser);
+  
     const verifiedUsers = await this.usersRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.profile', 'profile')
       .where('user.isVerified = :isVerified', { isVerified: true })
       .andWhere('user.statusData = :statusData', { statusData: true })
-      .select(['user.id', 'user.username', 'profile.fullName', 'profile.email'])
+      .select(['user.id', 'user.email', 'profile.fullName', 'profile.encrypt'])
       .orderBy('profile.fullName', 'ASC')
       .getMany();
-
+  
     verifiedUsers.forEach((user) => {
       if (user.profile && user.profile.encrypt) {
         const decryptedData = this.encryptionService.decrypt(
@@ -245,7 +248,7 @@ export class UserService {
         user.profile.encrypt = decryptedData;
       }
     });
-
+  
     this.logger.log(`${executor}[getVerifiedUsers] Retrieved ${verifiedUsers.length} verified users`);
     return verifiedUsers;
   }
