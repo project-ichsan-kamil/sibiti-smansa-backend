@@ -1,6 +1,6 @@
 import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { NumericType, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { hash } from 'bcrypt';
 import { Users } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -8,6 +8,9 @@ import { ProfileUser } from 'src/profile-user/entities/profile-user.entity';
 import { EncryptionService } from 'src/common/encryption/encryption.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { EmailService } from 'src/common/email/email.service';
+import { UserRoleService } from 'src/user-role/user-role.service';
+import { UserClass } from 'src/class/entities/user-class.entity';
+import { Class } from 'src/class/entities/class.entity';
 
 @Injectable()
 export class UserService {
@@ -16,135 +19,114 @@ export class UserService {
   constructor(
     @InjectRepository(Users)
     private readonly usersRepository: Repository<Users>,
+    @InjectRepository(Class)
+    private readonly classRepository: Repository<Class>,
     private readonly encryptionService: EncryptionService,
     private readonly emailService: EmailService,
+    private readonly userRoleService: UserRoleService,
   ) {}
 
   async createUser(
     createUserDto: CreateUserDto,
     currentUser: any,
   ): Promise<any> {
-    // TODO : check is admin
-    const { username, password, email, noHp, fullName } = createUserDto;
-
-    this.logger.log('[createUser] Checking if username is already registered');
-    const existingUser = await this.usersRepository.findOne({
-      where: { username, statusData: true },
-    });
-
-    if (existingUser) {
-      this.logger.error(
-        `[createUser] Username "${username}" is already registered`,
-      );
-      throw new HttpException('Username sudah terdaftar', HttpStatus.CONFLICT);
-    }
-
-    this.logger.log('[createUser] Encrypting the password');
-    const hashedPassword = await hash(password, 10);
-
-    const queryRunner =
-      this.usersRepository.manager.connection.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
+    this.logger.log('[createUser] Initiating user creation process');
+    
     try {
-      this.logger.log('[createUser] Creating user');
-      const user = new Users();
-      user.username = username;
-      user.password = hashedPassword;
-      user.updatedBy = currentUser.fullName;
+      // Check if current user is a super admin
+      await this.checkIfSuperAdmin(currentUser);
+    
+      const { password, email, noHp, fullName, classId } = createUserDto;
+    
+      // Check if email is already registered
+      const existingUser = await this.usersRepository.findOne({
+        where: { email, statusData: true },
+      });
 
-      const savedUser = await queryRunner.manager.save(user);
-      this.logger.log('[createUser] User created successfully');
-
-      this.logger.log('[createUser] Creating user profile');
-      const userProfile = new ProfileUser();
-      userProfile.user = savedUser;
-      userProfile.email = email;
-      userProfile.noHp = noHp;
-      userProfile.fullName = fullName;
-      userProfile.encrypt = this.encryptionService.encrypt(`${password}`); // Tambahkan ini
-      userProfile.updatedBy = currentUser.fullName;
-
-      await queryRunner.manager.save(userProfile);
-      this.logger.log('[createUser] User profile created successfully');
-      await queryRunner.commitTransaction();
-
-      return savedUser;
+      if (existingUser) {
+        this.logger.error(`[createUser] Email "${email}" is already registered`);
+        throw new HttpException('Email sudah terdaftar', HttpStatus.CONFLICT);
+      }
+    
+      // Encrypt the password
+      const hashedPassword = await hash(password, 10);
+    
+      const queryRunner = this.usersRepository.manager.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+    
+      try {
+        // Create user and profile
+        const user = new Users();
+        user.email = email;
+        user.password = hashedPassword;
+        user.updatedBy = currentUser.fullName;
+    
+        const savedUser = await queryRunner.manager.save(user);
+    
+        const userProfile = new ProfileUser();
+        userProfile.user = savedUser;
+        userProfile.noHp = noHp;
+        userProfile.fullName = fullName;
+        userProfile.encrypt = this.encryptionService.encrypt(`${password}`);
+        userProfile.updatedBy = currentUser.fullName;
+    
+        await queryRunner.manager.save(userProfile);
+    
+        // Associate user with class if classId is provided
+        if (classId) {
+          const classEntity = await this.classRepository.findOne({
+            where: { id: classId, statusData: true },
+          });
+    
+          if (!classEntity) {
+            this.logger.error(`[createUser] Class with ID "${classId}" not found or is inactive`);
+            throw new HttpException('Kelas tidak ditemukan atau tidak aktif', HttpStatus.NOT_FOUND);
+          }
+    
+          const userClassAssociation = new UserClass();
+          userClassAssociation.user = savedUser;
+          userClassAssociation.classEntity = classEntity;
+          userClassAssociation.statusData = true;
+          userClassAssociation.createdBy = currentUser.fullName;
+          userClassAssociation.updatedBy = currentUser.fullName;
+    
+          await queryRunner.manager.save(userClassAssociation);
+        }
+    
+        await queryRunner.commitTransaction();
+    
+        this.logger.log('[createUser] User creation process completed successfully');
+        return { user: savedUser };
+      } catch (innerError) {
+        this.logger.error('[createUser] Error during transaction', innerError.stack);
+        await queryRunner.rollbackTransaction();
+        throw new HttpException('Error creating user', HttpStatus.INTERNAL_SERVER_ERROR);
+      } finally {
+        await queryRunner.release();
+      }
     } catch (error) {
-      this.logger.error('[createUser] Error creating user', error.stack);
-
-      await queryRunner.rollbackTransaction();
-      throw new HttpException(
-        'Error creating user',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    } finally {
-      await queryRunner.release();
+      this.logger.error('[createUser] Error during user creation process', error.stack);
+      throw error;
     }
-  }
-
-  async updateUserProfile(
-    userId: number,
-    updateUserDto: UpdateUserDto,
-    currentUser: any,
-  ): Promise<any> {
-    // TODO : check is admin
-    this.logger.log(
-      `[updateUserProfile] Updating profile for user with ID ${userId}`,
-    );
-
-    const user = await this.usersRepository.findOne({
-      where: { id: userId },
-      relations: ['profile'],
-    });
-
-    if (!user || !user.profile) {
-      this.logger.error(
-        `[updateUserProfile] Profile for user with ID ${userId} not found`,
-      );
-      throw new HttpException(
-        'User profile tidak ditemukan',
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    const userProfile = user.profile;
-
-    if (updateUserDto.email) {
-      userProfile.email = updateUserDto.email;
-    }
-
-    if (updateUserDto.noHp) {
-      userProfile.noHp = updateUserDto.noHp;
-    }
-
-    if (updateUserDto.fullName) {
-      userProfile.fullName = updateUserDto.fullName;
-    }
-
-    if (updateUserDto.password) {
-      this.logger.log('[updateUserProfile] Encrypting the password');
-      const hashedPassword = await hash(updateUserDto.password, 10);
-      user.password = hashedPassword; // Update the hashed password in the Users table
-      userProfile.encrypt = this.encryptionService.encrypt(
-        updateUserDto.password,
-      ); // Encrypt the plain password for ProfileUser
-    }
-
-    userProfile.updatedBy = currentUser.fullName;
-    await this.usersRepository.manager.save(userProfile);
-    await this.usersRepository.save(user);
-
-    this.logger.log(
-      `[updateUserProfile] Profile for user with ID ${userId} updated successfully`,
-    );
-
-    return userProfile;
   }
 
   async verifyUser(verifyUserId: number, currentUser: any): Promise<any> {
-    // TODO : check is admin
+    this.logger.log(`[verifyUser] Starting verification for user with ID ${verifyUserId}`);
+
+    // Check if the current user is a super admin
+    this.logger.log('[verifyUser] Checking if current user is super admin');
+    const isSuperAdmin = await this.userRoleService.isSuperAdmin(currentUser.id);
+    if (!isSuperAdmin) {
+      this.logger.error(
+        '[verifyUser] Current user is not super admin, aborting verification',
+      );
+      throw new HttpException(
+        'Only super admin can verify a user',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
     this.logger.log(`[verifyUser] Verifying user with ID ${verifyUserId}`);
     const user = await this.usersRepository.findOne({
       where: { id: verifyUserId },
@@ -160,32 +142,36 @@ export class UserService {
     user.isVerified = true;
 
     await this.usersRepository.save(user);
-    const passwordEncrypted = this.encryptionService.decrypt(
-      user.profile.encrypt,
-    );
-    console.log(passwordEncrypted);
 
-    this.logger.log(
-      `[verifyUser] Sending email to user with ID ${verifyUserId}`,
-    );
-    await this.emailService.sendPassword(user.profile.email, passwordEncrypted);
-    this.logger.log(
-      `[verifyUser] User with ID ${verifyUserId} verified successfully`,
-    );
+    const passwordEncrypted = this.encryptionService.decrypt(user.profile.encrypt);
+
+    this.logger.log(`[verifyUser] Sending email to user with ID ${verifyUserId}`);
+    await this.emailService.sendPassword(user.email, passwordEncrypted);
+    
+    this.logger.log(`[verifyUser] User with ID ${verifyUserId} verified successfully`);
     return user;
   }
 
   async inActiveUser(inActiveUserId: number, currentUser: any): Promise<any> {
-    // TODO : check is admin
-    this.logger.log(`[inActiveUser] Inactive user with ID ${inActiveUserId}`);
+    this.logger.log(`[inActiveUser] Starting process to inactivate user with ID ${inActiveUserId}`);
+
+    // Check if the current user is a super admin
+    this.logger.log('[inActiveUser] Checking if current user is super admin');
+    const isSuperAdmin = await this.userRoleService.isSuperAdmin(currentUser.id);
+    if (!isSuperAdmin) {
+      this.logger.error('[inActiveUser] Current user is not super admin, aborting inactivation');
+      throw new HttpException(
+        'Only super admin can inactivate a user',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
     const user = await this.usersRepository.findOne({
       where: { id: inActiveUserId },
     });
 
     if (!user) {
-      this.logger.error(
-        `[inActiveUser] User with ID ${inActiveUserId} not found`,
-      );
+      this.logger.error(`[inActiveUser] User with ID ${inActiveUserId} not found`);
       throw new HttpException('User tidak ditemukan', HttpStatus.NOT_FOUND);
     }
 
@@ -193,9 +179,7 @@ export class UserService {
     user.isVerified = false;
 
     await this.usersRepository.save(user);
-    this.logger.log(
-      `[inActiveUser] User with ID ${inActiveUserId} inactive successfully`,
-    );
+    this.logger.log(`[inActiveUser] User with ID ${inActiveUserId} inactivated successfully`);
 
     return user;
   }
@@ -260,10 +244,9 @@ export class UserService {
       .where('user.id = :userId', { userId })
       .select([
         'user.id',
-        'user.username',
+        'user.email',
         'profile.encrypt',
         'profile.fullName',
-        'profile.email',
         'profile.noHp',
       ])
       .getOne();
@@ -334,4 +317,19 @@ export class UserService {
 
     return users;
   }
+
+  private async checkIfSuperAdmin(currentUser: any): Promise<void> {
+    this.logger.log('[checkIfSuperAdmin] Checking if current user is super admin');
+    const isSuperAdmin = await this.userRoleService.isSuperAdmin(currentUser.id);
+    if (!isSuperAdmin) {
+      this.logger.error(
+        '[checkIfSuperAdmin] Current user is not super admin, aborting user creation',
+      );
+      throw new HttpException(
+        'Only super admin can create a new user',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+  }
+  
 }

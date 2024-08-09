@@ -11,13 +11,13 @@ import {
   ParseIntPipe,
   Patch,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserService } from './users.service';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt.auth.guard';
 import { verifyUserDto } from './dto/verify-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { count } from 'console';
 
 @Controller('users')
 export class UsersController {
@@ -36,10 +36,10 @@ export class UsersController {
     };
   }
 
-  @Post('verify/:userId')
+  @Post('verify')
   @UseGuards(JwtAuthGuard)
   @UsePipes(ValidationPipe)
-  async verifyUser(@Param('userId', ParseIntPipe) userId: number, @Req() req) {
+  async verifyUser(@Query('userId', ParseIntPipe) userId: number, @Req() req) {
     const currentUser = req.user;
     const result = await this.userService.verifyUser(
       userId,
@@ -54,10 +54,10 @@ export class UsersController {
   @Post('unverify')
   @UseGuards(JwtAuthGuard)
   @UsePipes(ValidationPipe)
-  async unverifyUser(@Body() verifyUserDto: verifyUserDto, @Req() req) {
+  async unverifyUser(@Query("userId") userId : number, @Req() req) {
     const currentUser = req.user;
     const result = await this.userService.inActiveUser(
-      verifyUserDto.userId,
+      userId,
       currentUser,
     );
     return {
@@ -67,9 +67,9 @@ export class UsersController {
     };
   }
 
-  @Get('get-user/:userId')
+  @Get('get-user')
   @UseGuards(JwtAuthGuard)
-  async getUserByUserId(@Param('userId', ParseIntPipe) userId: number) {
+  async getUserByUserId(@Query('userId') userId: number) {
     const result = await this.userService.getUserByUserId(userId);
     return {
       statusCode: 200,
@@ -98,23 +98,6 @@ export class UsersController {
       statusCode: 200,
       message: 'User berhasil ditemukan',
       count: result.length,
-      data: result,
-    };
-  }
-
-  @Patch('/profile-update/:userId')
-  @UseGuards(JwtAuthGuard)
-  @UsePipes(ValidationPipe)
-  async updateUserProfile(
-    @Param('userId', ParseIntPipe) userId: number,
-    @Body() updateUserDto: UpdateUserDto,
-    @Req() req
-  ): Promise<any> {
-    const currentUser = req.user;
-    const result = await this.userService.updateUserProfile(userId, updateUserDto, currentUser);
-    return {
-      statusCode: 200,
-      message: 'User berhasil diupdate',
       data: result,
     };
   }
