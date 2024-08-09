@@ -107,4 +107,11 @@ export class UserRoleService {
 
     return users;
   }
+
+  async isSuperAdmin(userId: number): Promise<boolean> {
+    const userRole = await this.userRoleRepository.findOne({
+      where: { user: { id: userId }, role: 'super admin', statusData: true },
+    });
+    return !!userRole;
+  }
 }
