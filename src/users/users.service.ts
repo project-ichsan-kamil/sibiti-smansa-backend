@@ -1,3 +1,5 @@
+import * as ExcelJS from 'exceljs';
+import { Multer } from 'multer';
 import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -45,7 +47,7 @@ export class UserService {
 
       if (existingUser) {
         this.logger.error(`[createUser] Email "${email}" is already registered`);
-        throw new HttpException('Email sudah terdaftar', HttpStatus.CONFLICT);
+        throw new HttpException(`Email "${email}" sudah terdaftar`, HttpStatus.CONFLICT);
       }
     
       // Encrypt the password
@@ -317,6 +319,90 @@ export class UserService {
 
     return users;
   }
+
+  async createUserFormTemplateExcel(file: Multer.File, currentUser: any): Promise<any> {
+    const executor = `[${currentUser.fullName}]`;
+    this.logger.log(`${executor}[createUserFormTemplateExcel] Starting Excel file processing`);
+  
+    // Pastikan pengguna saat ini adalah super admin
+    await this.checkIfSuperAdmin(currentUser);
+  
+    const workbook = new ExcelJS.Workbook();
+  
+    try {
+      await workbook.xlsx.load(file.buffer);
+    } catch (error) {
+      this.logger.error(`${executor}[createUserFormTemplateExcel] Error loading Excel file: ${error.message}`, error.stack);
+      throw new HttpException('Failed to load Excel file', HttpStatus.BAD_REQUEST);
+    }
+  
+    const errorMessages: string[] = [];
+  
+    for (const worksheet of workbook.worksheets) {
+      const className = worksheet.name;
+      let classId: number | null = null;
+  
+      // Jika bukan tab "Guru", cari ID kelas berdasarkan nama tab
+      if (className !== 'Guru') {
+        try {
+          const classEntity = await this.classRepository.findOne({
+            where: { name: className, statusData: true },
+          });
+  
+          if (!classEntity) {
+            const errorMessage = `Class with name "${className}" not found or is inactive`;
+            this.logger.error(`${executor}[createUserFormTemplateExcel] ${errorMessage}`);
+            errorMessages.push(errorMessage);
+            continue; // Lewati worksheet ini jika kelas tidak ditemukan
+          }
+  
+          classId = classEntity.id;
+        } catch (error) {
+          const errorMessage = `Error finding class with name "${className}": ${error.message}`;
+          this.logger.error(`${executor}[createUserFormTemplateExcel] ${errorMessage}`, error.stack);
+          errorMessages.push(errorMessage);
+          continue; // Lewati worksheet ini jika terjadi kesalahan saat mencari kelas
+        }
+      }
+  
+      worksheet.eachRow({ includeEmpty: false }, async (row, rowNumber) => {
+        if (rowNumber <= 1) return; // Lewati baris header
+  
+        const createUserDto: CreateUserDto = {
+          fullName: String(row.getCell(2).value),
+          email: String(row.getCell(3).value),
+          password: String(row.getCell(4).value),
+          noHp: String(row.getCell(5).value),
+          ...(className !== 'Guru' && { classId }), // Sertakan classId hanya jika bukan tab "Guru"
+        };
+  
+        this.logger.log(`${executor}[createUserFormTemplateExcel] Creating user for row ${rowNumber} in class "${className}"`);
+  
+        try {
+          await this.createUser(createUserDto, currentUser);
+        } catch (error) {
+          const errorMessage = `Error processing row ${rowNumber} in class "${className}": ${error.message}`;
+          this.logger.error(`${executor}[createUserFormTemplateExcel] ${errorMessage}`, error.stack);
+          errorMessages.push(errorMessage);
+        }
+      });
+    }
+  
+    if (errorMessages.length > 0) {
+      this.logger.warn(`${executor}[createUserFormTemplateExcel] Completed with errors: ${errorMessages.join('; ')}`);
+      throw new HttpException(
+        {
+          message: `Excel file processed with some errors: ${errorMessages.join('; ')}`,
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  
+    this.logger.log(`${executor}[createUserFormTemplateExcel] Excel file processed successfully`);
+    return { message: 'Excel file processed successfully' };
+  }
+  
+  
 
   private async checkIfSuperAdmin(currentUser: any): Promise<void> {
     this.logger.log('[checkIfSuperAdmin] Checking if current user is super admin');

@@ -1,3 +1,4 @@
+import { Multer } from 'multer';
 import {
   Controller,
   Post,
@@ -9,15 +10,18 @@ import {
   Get,
   Param,
   ParseIntPipe,
-  Patch,
   Delete,
   Query,
+  UseInterceptors,
+  UploadedFile,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserService } from './users.service';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt.auth.guard';
-import { verifyUserDto } from './dto/verify-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+
 
 @Controller('users')
 export class UsersController {
@@ -114,7 +118,6 @@ export class UsersController {
     };
   }
 
-  //create function search user by username
   @Get('search/:fullName')
   @UseGuards(JwtAuthGuard)
   async searchUserByFullName(@Param('fullName') fullName: string) {
@@ -126,4 +129,22 @@ export class UsersController {
       data: result,
     };
   }
+
+  @Post('upload-excel')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadExcel(
+    @UploadedFile() file: Multer.File,
+    @Req() req
+  ) {
+    const currentUser = req.user
+    if (!file) {
+      throw new HttpException('No file provided', HttpStatus.BAD_REQUEST);
+    }
+
+    const result = await this.userService.createUserFormTemplateExcel(file, currentUser);
+    return result;
+  }
 }
+
+
