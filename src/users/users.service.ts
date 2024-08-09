@@ -107,46 +107,57 @@ export class UserService {
     }
   }
 
-  async verifyUser(verifyUserId: number, currentUser: any): Promise<any> {
+  async verifyUsers(verifyUserIds: number[], currentUser: any): Promise<any[]> {
     const executor = `[${currentUser.fullName}]`;
-    this.logger.log(`${executor}[verifyUser] Starting verification for user with ID ${verifyUserId}`);
-
-    this.logger.log(`${executor}[verifyUser] Checking if current user is super admin`);
-    const isSuperAdmin = await this.userRoleService.isSuperAdmin(currentUser.id);
-    if (!isSuperAdmin) {
-      this.logger.error(
-        `${executor}[verifyUser] Current user is not super admin, aborting verification`,
+    this.logger.log(`${executor}[verifyUsers] Verifying users with IDs: ${verifyUserIds.join(', ')}`);
+  
+    // Memeriksa apakah pengguna saat ini adalah super admin menggunakan fungsi checkIfSuperAdmin
+    await this.checkIfSuperAdmin(currentUser);
+  
+    const verifiedUsers = [];
+    const emailSendPromises = [];
+  
+    for (const verifyUserId of verifyUserIds) {
+      const user = await this.usersRepository.findOne({
+        where: { id: verifyUserId },
+        relations: ['profile'],
+      });
+  
+      if (!user) {
+        this.logger.warn(`${executor}[verifyUsers] User with ID ${verifyUserId} not found`);
+        continue; // Skip this user and continue with the next one
+      }
+  
+      user.updatedBy = currentUser.fullName;
+      user.isVerified = true;
+  
+      await this.usersRepository.save(user);
+  
+      const passwordEncrypted = this.encryptionService.decrypt(user.profile.encrypt);
+      
+      // Simpan promise pengiriman email
+      emailSendPromises.push(
+        this.emailService.sendPassword(user.email, passwordEncrypted)
+          .then(() => {
+            this.logger.log(`${executor}[verifyUsers] Email sent successfully to user with ID ${verifyUserId}`);
+          })
+          .catch(error => {
+            this.logger.error(`${executor}[verifyUsers] Failed to send email to user with ID ${verifyUserId}: ${error.message}`);
+          })
       );
-      throw new HttpException(
-        'Only super admin can verify a user',
-        HttpStatus.FORBIDDEN,
-      );
+  
+      this.logger.log(`${executor}[verifyUsers] User with ID ${verifyUserId} verified successfully`);
+      verifiedUsers.push(user);
     }
-
-    this.logger.log(`${executor}[verifyUser] Verifying user with ID ${verifyUserId}`);
-    const user = await this.usersRepository.findOne({
-      where: { id: verifyUserId },
-      relations: ['profile'],
-    });
-
-    if (!user) {
-      this.logger.error(`${executor}[verifyUser] User with ID ${verifyUserId} not found`);
-      throw new HttpException('User tidak ditemukan', HttpStatus.NOT_FOUND);
-    }
-
-    user.updatedBy = currentUser.fullName;
-    user.isVerified = true;
-
-    await this.usersRepository.save(user);
-
-    const passwordEncrypted = this.encryptionService.decrypt(user.profile.encrypt);
-
-    this.logger.log(`${executor}[verifyUser] Sending email to user with ID ${verifyUserId}`);
-    await this.emailService.sendPassword(user.email, passwordEncrypted);
-    
-    this.logger.log(`${executor}[verifyUser] User with ID ${verifyUserId} verified successfully`);
-    return user;
+  
+    // Tunggu semua email terkirim
+    await Promise.all(emailSendPromises);
+  
+    this.logger.log(`${executor}[verifyUsers] Verification completed for users with IDs: ${verifyUserIds.join(', ')}`);
+    return verifiedUsers;
   }
+  
+  
 
   async inActiveUser(inActiveUserId: number, currentUser: any): Promise<any> {
     const executor = `[${currentUser.fullName}]`;

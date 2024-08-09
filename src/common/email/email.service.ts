@@ -13,7 +13,7 @@ export class EmailService {
 
   public async sendPassword(email: string, password: string): Promise<void> {
     const subject = 'Password Account';
-    const html = `<p>Password Accouent ${password}</p>`;
+    const html = `<p>Password Account ${password}</p>`;
     await this.sendEmail(email, subject, html);
   }
 
