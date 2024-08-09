@@ -7,6 +7,9 @@ export class ProfileUser {
     id: number;
 
     @Column()
+    userId: number; 
+
+    @Column()
     fullName: string;
 
     @Column({ nullable: true })
