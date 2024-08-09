@@ -73,8 +73,9 @@ export class UsersController {
 
   @Get('get-user')
   @UseGuards(JwtAuthGuard)
-  async getUserByUserId(@Query('userId') userId: number) {
-    const result = await this.userService.getUserByUserId(userId);
+  async getUserByUserId(@Query('userId') userId: number, @Req() req) {
+    const currentUser = req.user
+    const result = await this.userService.getUserByUserId(userId, currentUser);
     return {
       statusCode: 200,
       message: 'User berhasil di temukan',
@@ -84,8 +85,9 @@ export class UsersController {
 
   @Get('user-unverified')
   @UseGuards(JwtAuthGuard)
-  async getUnverifiedUsers() {
-    const result = await this.userService.getUnverifiedUsers();
+  async getUnverifiedUsers(@Req() req) {
+    const currentUser = req.user
+    const result = await this.userService.getUnverifiedUsers(currentUser);
     return {
       statusCode: 200,
       message: 'User berhasil ditemukan',
@@ -96,8 +98,9 @@ export class UsersController {
 
   @Get('user-verified')
   @UseGuards(JwtAuthGuard)
-  async getVerifiedUsers() {
-    const result = await this.userService.getVerifiedUsers();
+  async getVerifiedUsers(@Req() req) {
+    const currentUser = req.user
+    const result = await this.userService.getVerifiedUsers(currentUser);
     return {
       statusCode: 200,
       message: 'User berhasil ditemukan',
@@ -120,8 +123,9 @@ export class UsersController {
 
   @Get('search/:fullName')
   @UseGuards(JwtAuthGuard)
-  async searchUserByFullName(@Param('fullName') fullName: string) {
-    const result = await this.userService.searchUserByFullName(fullName);
+  async searchUserByFullName(@Param('fullName') fullName: string, @Req() req) {
+    const currentUser = req.user
+    const result = await this.userService.searchUserByFullName(fullName, currentUser);
     return {
       statusCode: 200,
       message: 'User berhasil ditemukan',

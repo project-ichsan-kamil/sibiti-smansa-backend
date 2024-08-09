@@ -32,33 +32,28 @@ export class UserService {
     createUserDto: CreateUserDto,
     currentUser: any,
   ): Promise<any> {
-    this.logger.log('[createUser] Initiating user creation process');
+    const executor = `[${currentUser.fullName}]`;
+    this.logger.log(`${executor}[createUser] Initiating user creation process`);
     
     try {
-      // Check if current user is a super admin
       await this.checkIfSuperAdmin(currentUser);
-    
       const { password, email, noHp, fullName, classId } = createUserDto;
     
-      // Check if email is already registered
       const existingUser = await this.usersRepository.findOne({
         where: { email, statusData: true },
       });
 
       if (existingUser) {
-        this.logger.error(`[createUser] Email "${email}" is already registered`);
+        this.logger.error(`${executor}[createUser] Email "${email}" is already registered`);
         throw new HttpException(`Email "${email}" sudah terdaftar`, HttpStatus.CONFLICT);
       }
     
-      // Encrypt the password
       const hashedPassword = await hash(password, 10);
-    
       const queryRunner = this.usersRepository.manager.connection.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction();
     
       try {
-        // Create user and profile
         const user = new Users();
         user.email = email;
         user.password = hashedPassword;
@@ -75,14 +70,13 @@ export class UserService {
     
         await queryRunner.manager.save(userProfile);
     
-        // Associate user with class if classId is provided
         if (classId) {
           const classEntity = await this.classRepository.findOne({
             where: { id: classId, statusData: true },
           });
     
           if (!classEntity) {
-            this.logger.error(`[createUser] Class with ID "${classId}" not found or is inactive`);
+            this.logger.error(`${executor}[createUser] Class with ID "${classId}" not found or is inactive`);
             throw new HttpException('Kelas tidak ditemukan atau tidak aktif', HttpStatus.NOT_FOUND);
           }
     
@@ -98,30 +92,30 @@ export class UserService {
     
         await queryRunner.commitTransaction();
     
-        this.logger.log('[createUser] User creation process completed successfully');
+        this.logger.log(`${executor}[createUser] User creation process completed successfully`);
         return { user: savedUser };
       } catch (innerError) {
-        this.logger.error('[createUser] Error during transaction', innerError.stack);
+        this.logger.error(`${executor}[createUser] Error during transaction`, innerError.stack);
         await queryRunner.rollbackTransaction();
         throw new HttpException('Error creating user', HttpStatus.INTERNAL_SERVER_ERROR);
       } finally {
         await queryRunner.release();
       }
     } catch (error) {
-      this.logger.error('[createUser] Error during user creation process', error.stack);
+      this.logger.error(`${executor}[createUser] Error during user creation process`, error.stack);
       throw error;
     }
   }
 
   async verifyUser(verifyUserId: number, currentUser: any): Promise<any> {
-    this.logger.log(`[verifyUser] Starting verification for user with ID ${verifyUserId}`);
+    const executor = `[${currentUser.fullName}]`;
+    this.logger.log(`${executor}[verifyUser] Starting verification for user with ID ${verifyUserId}`);
 
-    // Check if the current user is a super admin
-    this.logger.log('[verifyUser] Checking if current user is super admin');
+    this.logger.log(`${executor}[verifyUser] Checking if current user is super admin`);
     const isSuperAdmin = await this.userRoleService.isSuperAdmin(currentUser.id);
     if (!isSuperAdmin) {
       this.logger.error(
-        '[verifyUser] Current user is not super admin, aborting verification',
+        `${executor}[verifyUser] Current user is not super admin, aborting verification`,
       );
       throw new HttpException(
         'Only super admin can verify a user',
@@ -129,14 +123,14 @@ export class UserService {
       );
     }
 
-    this.logger.log(`[verifyUser] Verifying user with ID ${verifyUserId}`);
+    this.logger.log(`${executor}[verifyUser] Verifying user with ID ${verifyUserId}`);
     const user = await this.usersRepository.findOne({
       where: { id: verifyUserId },
       relations: ['profile'],
     });
 
     if (!user) {
-      this.logger.error(`[verifyUser] User with ID ${verifyUserId} not found`);
+      this.logger.error(`${executor}[verifyUser] User with ID ${verifyUserId} not found`);
       throw new HttpException('User tidak ditemukan', HttpStatus.NOT_FOUND);
     }
 
@@ -147,21 +141,21 @@ export class UserService {
 
     const passwordEncrypted = this.encryptionService.decrypt(user.profile.encrypt);
 
-    this.logger.log(`[verifyUser] Sending email to user with ID ${verifyUserId}`);
+    this.logger.log(`${executor}[verifyUser] Sending email to user with ID ${verifyUserId}`);
     await this.emailService.sendPassword(user.email, passwordEncrypted);
     
-    this.logger.log(`[verifyUser] User with ID ${verifyUserId} verified successfully`);
+    this.logger.log(`${executor}[verifyUser] User with ID ${verifyUserId} verified successfully`);
     return user;
   }
 
   async inActiveUser(inActiveUserId: number, currentUser: any): Promise<any> {
-    this.logger.log(`[inActiveUser] Starting process to inactivate user with ID ${inActiveUserId}`);
+    const executor = `[${currentUser.fullName}]`;
+    this.logger.log(`${executor}[inActiveUser] Starting process to inactivate user with ID ${inActiveUserId}`);
 
-    // Check if the current user is a super admin
-    this.logger.log('[inActiveUser] Checking if current user is super admin');
+    this.logger.log(`${executor}[inActiveUser] Checking if current user is super admin`);
     const isSuperAdmin = await this.userRoleService.isSuperAdmin(currentUser.id);
     if (!isSuperAdmin) {
-      this.logger.error('[inActiveUser] Current user is not super admin, aborting inactivation');
+      this.logger.error(`${executor}[inActiveUser] Current user is not super admin, aborting inactivation`);
       throw new HttpException(
         'Only super admin can inactivate a user',
         HttpStatus.FORBIDDEN,
@@ -173,7 +167,7 @@ export class UserService {
     });
 
     if (!user) {
-      this.logger.error(`[inActiveUser] User with ID ${inActiveUserId} not found`);
+      this.logger.error(`${executor}[inActiveUser] User with ID ${inActiveUserId} not found`);
       throw new HttpException('User tidak ditemukan', HttpStatus.NOT_FOUND);
     }
 
@@ -181,12 +175,15 @@ export class UserService {
     user.isVerified = false;
 
     await this.usersRepository.save(user);
-    this.logger.log(`[inActiveUser] User with ID ${inActiveUserId} inactivated successfully`);
+    this.logger.log(`${executor}[inActiveUser] User with ID ${inActiveUserId} inactivated successfully`);
 
     return user;
   }
 
-  async getUnverifiedUsers(): Promise<any[]> {
+  async getUnverifiedUsers(currentUser: any): Promise<any[]> {
+    const executor = `[${currentUser.fullName}]`;
+    this.logger.log(`${executor}[getUnverifiedUsers] Retrieving unverified users`);
+
     const unverifiedUsers = await this.usersRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.profile', 'profile')
@@ -203,7 +200,6 @@ export class UserService {
       .orderBy('GREATEST(user.updatedAt, profile.updatedAt)', 'DESC')
       .getMany();
 
-    // Dekripsi data
     unverifiedUsers.forEach((user) => {
       if (user.profile && user.profile.encrypt) {
         const decryptedData = this.encryptionService.decrypt(
@@ -213,10 +209,14 @@ export class UserService {
       }
     });
 
+    this.logger.log(`${executor}[getUnverifiedUsers] Retrieved ${unverifiedUsers.length} unverified users`);
     return unverifiedUsers;
   }
 
-  async getVerifiedUsers(): Promise<any[]> {
+  async getVerifiedUsers(currentUser: any): Promise<any[]> {
+    const executor = `[${currentUser.fullName}]`;
+    this.logger.log(`${executor}[getVerifiedUsers] Retrieving verified users`);
+
     const verifiedUsers = await this.usersRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.profile', 'profile')
@@ -226,7 +226,6 @@ export class UserService {
       .orderBy('profile.fullName', 'ASC')
       .getMany();
 
-    // Dekripsi data
     verifiedUsers.forEach((user) => {
       if (user.profile && user.profile.encrypt) {
         const decryptedData = this.encryptionService.decrypt(
@@ -236,10 +235,14 @@ export class UserService {
       }
     });
 
+    this.logger.log(`${executor}[getVerifiedUsers] Retrieved ${verifiedUsers.length} verified users`);
     return verifiedUsers;
   }
 
-  async getUserByUserId(userId: number): Promise<any> {
+  async getUserByUserId(userId: number, currentUser: any): Promise<any> {
+    const executor = `[${currentUser.fullName}]`;
+    this.logger.log(`${executor}[getUserByUserId] Retrieving user with ID ${userId}`);
+
     const user = await this.usersRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.profile', 'profile')
@@ -254,11 +257,10 @@ export class UserService {
       .getOne();
 
     if (!user) {
-      this.logger.error(`[getUserByUserId] User with ID ${userId} not found`);
+      this.logger.error(`${executor}[getUserByUserId] User with ID ${userId} not found`);
       throw new HttpException('User tidak ditemukan', HttpStatus.NOT_FOUND);
     }
 
-    // Dekripsi data
     if (user.profile && user.profile.encrypt) {
       const decryptedData = this.encryptionService.decrypt(
         user.profile.encrypt,
@@ -266,15 +268,18 @@ export class UserService {
       user.profile.encrypt = decryptedData;
     }
 
+    this.logger.log(`${executor}[getUserByUserId] Retrieved user with ID ${userId}`);
     return user;
   }
 
   async deleteUser(userId: number, currentUser: any): Promise<any> {
-    this.logger.log(`[deleteUser] Deleting user with ID ${userId}`);
+    const executor = `[${currentUser.fullName}]`;
+    this.logger.log(`${executor}[deleteUser] Deleting user with ID ${userId}`);
+
     const user = await this.usersRepository.findOne({ where: { id: userId } });
 
     if (!user) {
-      this.logger.error(`[deleteUser] User with ID ${userId} not found`);
+      this.logger.error(`${executor}[deleteUser] User with ID ${userId} not found`);
       throw new HttpException('User tidak ditemukan', HttpStatus.NOT_FOUND);
     }
 
@@ -282,15 +287,14 @@ export class UserService {
     user.statusData = false;
 
     await this.usersRepository.save(user);
-    this.logger.log(`[deleteUser] User with ID ${userId} deleted successfully`);
+    this.logger.log(`${executor}[deleteUser] User with ID ${userId} deleted successfully`);
 
     return user;
   }
 
-  async searchUserByFullName(fullName: string): Promise<any> {
-    this.logger.log(
-      `[searchUserByFullName] Searching users with full name: ${fullName}`,
-    );
+  async searchUserByFullName(fullName: string, currentUser: any): Promise<any> {
+    const executor = `[${currentUser.fullName}]`;
+    this.logger.log(`${executor}[searchUserByFullName] Searching users with full name: ${fullName}`);
 
     const users = await this.usersRepository
       .createQueryBuilder('user')
@@ -307,7 +311,6 @@ export class UserService {
       ])
       .getMany();
 
-    // Dekripsi data
     users.forEach((user) => {
       if (user.profile && user.profile.encrypt) {
         const decryptedData = this.encryptionService.decrypt(
@@ -317,6 +320,7 @@ export class UserService {
       }
     });
 
+    this.logger.log(`${executor}[searchUserByFullName] Found ${users.length} users with full name "${fullName}"`);
     return users;
   }
 
@@ -324,9 +328,7 @@ export class UserService {
     const executor = `[${currentUser.fullName}]`;
     this.logger.log(`${executor}[createUserFormTemplateExcel] Starting Excel file processing`);
   
-    // Pastikan pengguna saat ini adalah super admin
     await this.checkIfSuperAdmin(currentUser);
-  
     const workbook = new ExcelJS.Workbook();
   
     try {
@@ -342,7 +344,6 @@ export class UserService {
       const className = worksheet.name;
       let classId: number | null = null;
   
-      // Jika bukan tab "Guru", cari ID kelas berdasarkan nama tab
       if (className !== 'Guru') {
         try {
           const classEntity = await this.classRepository.findOne({
@@ -353,7 +354,7 @@ export class UserService {
             const errorMessage = `Class with name "${className}" not found or is inactive`;
             this.logger.error(`${executor}[createUserFormTemplateExcel] ${errorMessage}`);
             errorMessages.push(errorMessage);
-            continue; // Lewati worksheet ini jika kelas tidak ditemukan
+            continue;
           }
   
           classId = classEntity.id;
@@ -361,19 +362,19 @@ export class UserService {
           const errorMessage = `Error finding class with name "${className}": ${error.message}`;
           this.logger.error(`${executor}[createUserFormTemplateExcel] ${errorMessage}`, error.stack);
           errorMessages.push(errorMessage);
-          continue; // Lewati worksheet ini jika terjadi kesalahan saat mencari kelas
+          continue;
         }
       }
   
       worksheet.eachRow({ includeEmpty: false }, async (row, rowNumber) => {
-        if (rowNumber <= 1) return; // Lewati baris header
+        if (rowNumber <= 1) return;
   
         const createUserDto: CreateUserDto = {
           fullName: String(row.getCell(2).value),
           email: String(row.getCell(3).value),
           password: String(row.getCell(4).value),
           noHp: String(row.getCell(5).value),
-          ...(className !== 'Guru' && { classId }), // Sertakan classId hanya jika bukan tab "Guru"
+          ...(className !== 'Guru' && { classId }),
         };
   
         this.logger.log(`${executor}[createUserFormTemplateExcel] Creating user for row ${rowNumber} in class "${className}"`);
@@ -401,15 +402,14 @@ export class UserService {
     this.logger.log(`${executor}[createUserFormTemplateExcel] Excel file processed successfully`);
     return { message: 'Excel file processed successfully' };
   }
-  
-  
 
   private async checkIfSuperAdmin(currentUser: any): Promise<void> {
-    this.logger.log('[checkIfSuperAdmin] Checking if current user is super admin');
+    const executor = `[${currentUser.fullName}]`;
+    this.logger.log(`${executor}[checkIfSuperAdmin] Checking if current user is super admin`);
     const isSuperAdmin = await this.userRoleService.isSuperAdmin(currentUser.id);
     if (!isSuperAdmin) {
       this.logger.error(
-        '[checkIfSuperAdmin] Current user is not super admin, aborting user creation',
+        `${executor}[checkIfSuperAdmin] Current user is not super admin, aborting user creation`,
       );
       throw new HttpException(
         'Only super admin can create a new user',
@@ -417,5 +417,4 @@ export class UserService {
       );
     }
   }
-  
 }
