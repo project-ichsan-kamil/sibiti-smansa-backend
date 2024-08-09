@@ -83,7 +83,7 @@ export class ClassService {
         const lowerCaseNama = nama.trim().replace(/\s+/g, ' ').toLowerCase();
         return this.classRepository.find({ 
             where: { 
-                nama: Like(`%${lowerCaseNama}%`), 
+                name: Like(`%${lowerCaseNama}%`), 
                 statusData: true 
             }, 
             order: { updatedAt: 'DESC' } 

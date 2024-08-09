@@ -1,3 +1,4 @@
+import { Users } from 'src/users/entities/user.entity';
 import {
   Entity,
   PrimaryColumn,
@@ -5,18 +6,20 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   PrimaryGeneratedColumn,
+  OneToMany,
 } from 'typeorm';
+import { UserClass } from './user-class.entity';
 
 @Entity()
 export class Class {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;
-  
+
   @Column({ length: 255 })
-  nama: string;
+  name: string;
 
   @Column()
-  kelas: number;
+  class: number;
 
   @Column()
   status: number;
@@ -24,6 +27,11 @@ export class Class {
   @Column({ default: true })
   statusData: boolean;
 
+  //relation
+  @OneToMany(() => UserClass, (userClass) => userClass.classEntity)
+  userClasses: UserClass[];
+
+  //audit
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
