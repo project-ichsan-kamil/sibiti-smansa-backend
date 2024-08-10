@@ -292,6 +292,8 @@ export class UserService {
     const executor = `[${currentUser.fullName}]`;
     this.logger.log(`${executor}[deleteUser] Deleting user with ID ${userId}`);
 
+    await this.checkIfSuperAdmin(currentUser);
+
     const user = await this.usersRepository.findOne({ where: { id: userId } });
 
     if (!user) {
@@ -312,6 +314,8 @@ export class UserService {
     const executor = `[${currentUser.fullName}]`;
     this.logger.log(`${executor}[searchUserByFullName] Searching users with full name: ${fullName}`);
 
+    await this.checkIfSuperAdmin(currentUser);
+
     const users = await this.usersRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.profile', 'profile')
@@ -319,10 +323,9 @@ export class UserService {
       .andWhere('user.statusData = :statusData', { statusData: true })
       .select([
         'user.id',
-        'user.username',
+        'user.email',
         'profile.encrypt',
         'profile.fullName',
-        'profile.email',
         'profile.noHp',
       ])
       .getMany();

@@ -126,9 +126,9 @@ export class UsersController {
     };
   }
 
-  @Delete('delete/:userId')
+  @Delete('delete')
   @UseGuards(JwtAuthGuard)
-  async deleteUser(@Param('userId', ParseIntPipe) userId: number, @Req() req) {
+  async deleteUser(@Query('userId', ParseIntPipe) userId: number, @Req() req) {
     const currentUser = req.user;
     const result = await this.userService.deleteUser(userId, currentUser);
     return {
@@ -138,9 +138,9 @@ export class UsersController {
     };
   }
 
-  @Get('search/:fullName')
+  @Get('search')
   @UseGuards(JwtAuthGuard)
-  async searchUserByFullName(@Param('fullName') fullName: string, @Req() req) {
+  async searchUserByFullName(@Query('fullName') fullName: string, @Req() req) {
     const currentUser = req.user;
     const result = await this.userService.searchUserByFullName(
       fullName,
