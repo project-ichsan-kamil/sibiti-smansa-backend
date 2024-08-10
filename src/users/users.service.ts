@@ -257,6 +257,8 @@ export class UserService {
     const executor = `[${currentUser.fullName}]`;
     this.logger.log(`${executor}[getUserByUserId] Retrieving user with ID ${userId}`);
 
+    await this.checkIfSuperAdmin(currentUser);
+
     const user = await this.usersRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.profile', 'profile')
@@ -282,7 +284,7 @@ export class UserService {
       user.profile.encrypt = decryptedData;
     }
 
-    this.logger.log(`${executor}[getUserByUserId] Retrieved user with ID ${userId}`);
+    this.logger.log(`${executor}[getUserByUserId] Retrieved user with ID ${userId} successfully`);
     return user;
   }
 
