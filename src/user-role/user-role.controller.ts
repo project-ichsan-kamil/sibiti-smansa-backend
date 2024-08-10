@@ -1,47 +1,90 @@
-import { Controller, Get, Post, Body, Param, UsePipes, ValidationPipe, UseGuards, Delete, Patch, Req, Query } from '@nestjs/common';
+import { Controller, Post, Body, Param, Delete, Get, Query, UseGuards, Req, ValidationPipe, UsePipes } from '@nestjs/common';
 import { UserRoleService } from './user-role.service';
-import { CreateUserRoleDto } from './dto/create-user-role.dto';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt.auth.guard';
-import { count } from 'console';
+import { CreateUserRoleDto } from './dto/create-user-role.dto';
 
-@Controller('user-role')
+@Controller('user-roles')
 export class UserRoleController {
-  constructor(private readonly userRoleService: UserRoleService) {}
+    constructor(private readonly userRoleService: UserRoleService) {}
 
-  @Post()
-  @UseGuards(JwtAuthGuard)
-  @UsePipes(ValidationPipe)
-  async create(@Body() createUserRoleDto: CreateUserRoleDto, @Req() req){
-    const currentUser = req.user;
-    const result = await this.userRoleService.create(createUserRoleDto, currentUser);
-    return {
-      statusCode: 201,
-      message: 'Data berhasil disimpan',
+    @Post('create')
+    @UseGuards(JwtAuthGuard)
+    @UsePipes(ValidationPipe)
+    async createRole(
+        @Body() createRoleDto: CreateUserRoleDto,
+        @Req() req,
+    ) {
+        const currentUser = req.user;
+        const newRole = await this.userRoleService.createRole(
+            createRoleDto.role,
+            createRoleDto.userId,
+            createRoleDto.subjectId,
+            currentUser,
+        );
+        return {
+            statusCode: 201,
+            message: 'Role created successfully',
+            data: newRole,
+        };
     }
-  }
 
-  @Delete(':userRoleId')
-  @UseGuards(JwtAuthGuard)
-  async deleteRole(@Param('userRoleId') userRoleId: number, @Req() req) {
-    const currentUser = req.user;
-    const result = await this.userRoleService.deleteRole(userRoleId, currentUser);
-    return {
-      statusCode: 200,
-      message: 'Data berhasil dihapus',
-      data: result,
-    }
-  }
+    // @UseGuards(JwtAuthGuard)
+    // @Get('search')
+    // async searchUserByFullName(@Query('fullName') fullName: string) {
+    //     const users = await this.userRoleService.searchUserByFullName(fullName);
+    //     return {
+    //         statusCode: 200,
+    //         message: 'Users retrieved successfully',
+    //         data: users,
+    //     };
+    // }
 
-  @Get('search')
-  @UseGuards(JwtAuthGuard)
-  async searchByRoleAndName(@Query('role') role: string, @Query('name') name: string){
-    const result = await this.userRoleService.searchByRoleAndName(role, name );
-    return {
-      statusCode: 200,
-      message: 'Data berhasil ditemukan',
-      count: result.length,
-      data: result,
-    }
-  }
+    // @UseGuards(JwtAuthGuard)
+    // @Delete(':roleId')
+    // async deleteRole(@Param('roleId') roleId: number, @Req() req) {
+    //     const currentUser = req.user;
+    //     await this.userRoleService.deleteRole(roleId, currentUser);
+    //     return {
+    //         statusCode: 200,
+    //         message: 'Role deleted successfully',
+    //     };
+    // }
+
+    // @UseGuards(JwtAuthGuard)
+    // @Get('by-role')
+    // async getUsersByRole(@Query('role') role: UserRoleEnum) {
+    //     const users = await this.userRoleService.getUsersByRole(role);
+    //     return {
+    //         statusCode: 200,
+    //         message: 'Users retrieved successfully',
+    //         data: users,
+    //     };
+    // }
+
+    // @UseGuards(JwtAuthGuard)
+    // @Get(':roleId')
+    // async getRoleByRoleId(@Param('roleId') roleId: number) {
+    //     const role = await this.userRoleService.getRoleByRoleId(roleId);
+    //     return {
+    //         statusCode: 200,
+    //         message: 'Role retrieved successfully',
+    //         data: role,
+    //     };
+    // }
+
+    // @UseGuards(JwtAuthGuard)
+    // @Post('update/:roleId')
+    // async updateRole(
+    //     @Param('roleId') roleId: number,
+    //     @Body() updatedRoleData: Partial<UserRole>,
+    //     @Req() req,
+    // ) {
+    //     const currentUser = req.user;
+    //     const updatedRole = await this.userRoleService.updateRole(roleId, updatedRoleData, currentUser);
+    //     return {
+    //         statusCode: 200,
+    //         message: 'Role updated successfully',
+    //         data: updatedRole,
+    //     };
+    // }
 }
-
