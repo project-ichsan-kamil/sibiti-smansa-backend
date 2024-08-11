@@ -33,6 +33,21 @@ export class UserRoleController {
         };
     }
 
+    @Get()
+    @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN)
+    async getRoleById(
+      @Query('roleId') roleId: number,
+      @Req() req: any,
+    ) {
+      const currentUser = req.user;
+      const role = await this.userRoleService.getRoleById(roleId, currentUser);
+      return {
+        statusCode: 200,
+        message: `Role with ID: ${roleId} fetched successfully`,
+        data: role,
+      };
+    }
+
     @Get('list-admins')
     @Roles(UserRoleEnum.SUPER_ADMIN)
     async getListAdmins(@Req() req){

@@ -233,6 +233,27 @@ export class UserRoleService {
     await this.userRoleRepository.save(role);
     this.logger.log(`${executor} Admin role with ID: ${roleId} deactivated successfully`);
   }
+
+  async getRoleById(roleId: number, currentUser: any): Promise<UserRole> {
+    const executor = `[${currentUser.fullName}][getRoleById]`;
+    this.logger.log(`${executor} Fetching role with ID: ${roleId}`);
+
+    // Fetch the role by ID
+    const role = await this.userRoleRepository.findOne({
+      where: { id: roleId, statusData: true },
+      relations: ['user', 'user.profile'], // Include related user and profile information
+    });
+
+    if (!role) {
+      this.logger.error(`${executor} Role with ID: ${roleId} not found`);
+      throw new HttpException('Role not found', HttpStatus.NOT_FOUND);
+    }
+
+    this.logger.log(`${executor} Role with ID: ${roleId} fetched successfully`);
+    return role;
+  }
+
+
   
 
   async updateRoleGuru(
