@@ -254,6 +254,39 @@ export class UserRoleService {
   }
 
 
+  async updateGuruSubject(roleId: number, newSubjectId: number, currentUser: any): Promise<UserRole> {
+    const executor = `[${currentUser.fullName}][updateGuruSubject]`;
+    this.logger.log(`${executor} Attempting to update subject for Guru role with ID: ${roleId}`);
+
+    // Fetch the role to be updated
+    const role = await this.userRoleRepository.findOne({
+      where: { id: roleId, role: UserRoleEnum.GURU, statusData: true },
+      relations: ['user', 'subject'],
+    });
+
+    if (!role) {
+      this.logger.error(`${executor} Guru role with ID: ${roleId} not found`);
+      throw new HttpException('Guru role not found or inactive', HttpStatus.NOT_FOUND);
+    }
+
+    // Fetch the new subject
+    const newSubject = await this.subjectRepository.findOne({ where: { id: newSubjectId, statusData: true } });
+
+    if (!newSubject) {
+      this.logger.error(`${executor} Subject with ID: ${newSubjectId} not found`);
+      throw new HttpException('Subject not found or inactive', HttpStatus.NOT_FOUND);
+    }
+
+    // Update the subject
+    role.subject = newSubject;
+    role.updatedBy = currentUser.fullName;
+
+    const updatedRole = await this.userRoleRepository.save(role);
+    this.logger.log(`${executor} Subject for Guru role with ID: ${roleId} updated successfully`);
+    return updatedRole;
+  }
+
+
   
 
   async updateRoleGuru(
