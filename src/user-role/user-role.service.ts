@@ -1,6 +1,6 @@
 import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { UserRole } from './entities/user-role.entity';
 import { Users } from 'src/users/entities/user.entity';
 import { Subject } from 'src/subject/entities/subject.entity';
@@ -122,17 +122,74 @@ export class UserRoleService {
       where: {
         role: UserRoleEnum.ADMIN,
         statusData: true,
+        user: {
+          statusData: true, // Pengguna harus aktif
+          isVerified: true, // Pengguna harus diverifikasi
+        },
       },
       relations: ['user'], // Termasuk informasi pengguna terkait
     });
   
     if (!admins.length) {
       this.logger.warn(`${executor} No Admins found`);
-      throw new HttpException('Tidak ada pengguna dengan peran Admin yang ditemukan', HttpStatus.NOT_FOUND);
+      throw new HttpException('Tidak ada user role Admin yang ditemukan', HttpStatus.NOT_FOUND);
     }
   
     this.logger.log(`${executor} ${admins.length} Admins found`);
     return admins;
+  }
+
+  async getListGuru(currentUser: any): Promise<any[]> {
+    const executor = `[${currentUser.fullName}][getListGuru]`;
+    this.logger.log(`${executor} Fetching list of Gurus`);
+
+    // Mencari semua pengguna dengan peran Guru yang aktif dan terverifikasi
+    const gurus = await this.userRoleRepository.find({
+      where: {
+        role: UserRoleEnum.GURU,
+        statusData: true, // Hanya yang aktif
+        user: {
+          statusData: true, // Pengguna harus aktif
+          isVerified: true, // Pengguna harus diverifikasi
+        },
+      },
+      relations: ['user'], // Termasuk informasi pengguna terkait
+    });
+
+    if (!gurus.length) {
+      this.logger.warn(`${executor} No Gurus found`);
+    }
+
+    this.logger.log(`${executor} ${gurus.length} Gurus found`);
+    return gurus;
+  }
+
+  async getListUserByFullNameAndRole(fullName: string, role: UserRoleEnum, currentUser: any): Promise<any[]> {
+    const executor = `[${currentUser.fullName}][getListUserByFullNameAndRole]`;
+    this.logger.log(`${executor} Fetching list of users with role: ${role} by full name: ${fullName}`);
+
+    // Cari pengguna dengan nama (LIKE) di ProfileUser, peran yang diberikan, statusData true, dan isVerified true
+    const users = await this.userRoleRepository.find({
+      where: {
+        role: role,
+        statusData: true, // Hanya pengguna yang aktif
+        user: {
+          statusData: true, // Pengguna harus aktif
+          isVerified: true, // Pengguna harus diverifikasi
+          profile: {
+            fullName: Like(`%${fullName}%`), // Mencari berdasarkan LIKE untuk nama
+          },
+        },
+      },
+      relations: ['user', 'user.profile'], // Mengambil relasi dengan User dan ProfileUser
+    });
+
+    if (!users.length) {
+      this.logger.warn(`${executor} No users found matching the role: ${role} and name: ${fullName}`);
+    }
+
+    this.logger.log(`${executor} ${users.length} users found with role: ${role}`);
+    return users;
   }
   
 

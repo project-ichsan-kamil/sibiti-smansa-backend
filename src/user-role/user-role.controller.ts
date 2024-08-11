@@ -41,8 +41,38 @@ export class UserRoleController {
         return {
             statusCode: 200,
             message: 'Admins retrieved successfully',
+            count: admins.length,
             data: admins,
         };
+    }
+
+    @Get('list-guru')
+    @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN)
+    async getListGuru(@Req() req: any) {
+      const currentUser = req.user;
+      const gurus = await this.userRoleService.getListGuru(currentUser);
+      return {
+        statusCode: 200,
+        message: 'Daftar Guru berhasil diambil',
+        count : gurus.length,
+        data: gurus,
+      };
+    }
+
+    @Get('search')
+    @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN)
+    async getListUserByFullNameAndRole(
+      @Req() req: any, 
+      @Query('fullName') fullName: string,
+      @Query('role') role: UserRoleEnum,
+    ) {
+      const users = await this.userRoleService.getListUserByFullNameAndRole(fullName, role, req.user);
+      return {
+        statusCode: 200,
+        message: `Daftar pengguna dengan peran ${role} berhasil diambil`,
+        count : users.length,
+        data: users,
+      };
     }
 
     // @UseGuards(JwtAuthGuard)
