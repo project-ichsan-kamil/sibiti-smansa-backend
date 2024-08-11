@@ -113,6 +113,29 @@ export class UserRoleService {
     return savedRole;
   }
 
+  async getListAdmin(currentUser: any): Promise<UserRole[]> {
+    const executor = `[${currentUser.fullName}][getListAdmin]`;
+    this.logger.log(`${executor} Fetching list of Admins`); 
+  
+    // Cari semua pengguna dengan peran Admin
+    const admins = await this.userRoleRepository.find({
+      where: {
+        role: UserRoleEnum.ADMIN,
+        statusData: true,
+      },
+      relations: ['user'], // Termasuk informasi pengguna terkait
+    });
+  
+    if (!admins.length) {
+      this.logger.warn(`${executor} No Admins found`);
+      throw new HttpException('Tidak ada pengguna dengan peran Admin yang ditemukan', HttpStatus.NOT_FOUND);
+    }
+  
+    this.logger.log(`${executor} ${admins.length} Admins found`);
+    return admins;
+  }
+  
+
   async updateRoleGuru(
     roleId: number,
     subjectId: number,

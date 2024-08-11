@@ -33,6 +33,18 @@ export class UserRoleController {
         };
     }
 
+    @Get('list-admins')
+    @Roles(UserRoleEnum.SUPER_ADMIN)
+    async getListAdmins(@Req() req){
+        const currentUser = req.user;
+        const admins = await this.userRoleService.getListAdmin(currentUser);
+        return {
+            statusCode: 200,
+            message: 'Admins retrieved successfully',
+            data: admins,
+        };
+    }
+
     // @UseGuards(JwtAuthGuard)
     // @Get('search')
     // async searchUserByFullName(@Query('fullName') fullName: string) {
