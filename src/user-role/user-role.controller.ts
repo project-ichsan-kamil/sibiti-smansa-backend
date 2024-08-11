@@ -12,7 +12,7 @@ export class UserRoleController {
     constructor(private readonly userRoleService: UserRoleService) {}
 
     @Post('create')
-    @Roles(UserRoleEnum.SUPER_ADMIN)
+    @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN)
     @UsePipes(ValidationPipe)
     async createRole(
         @Body() createRoleDto: CreateUserRoleDto,
