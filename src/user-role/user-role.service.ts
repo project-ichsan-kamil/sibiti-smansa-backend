@@ -191,6 +191,48 @@ export class UserRoleService {
     this.logger.log(`${executor} ${users.length} users found with role: ${role}`);
     return users;
   }
+
+  async deactivateGuruRole(roleId: number, currentUser: any): Promise<void> {
+    const executor = `[${currentUser.fullName}][deactivateGuruRole]`;
+    this.logger.log(`${executor} Attempting to deactivate Guru role with ID: ${roleId}`);
+
+    // Fetch the role to be deactivated
+    const role = await this.userRoleRepository.findOne({
+      where: { id: roleId, role: UserRoleEnum.GURU, statusData: true },
+      relations: ['user'],
+    });
+
+    if (!role) {
+      this.logger.error(`${executor} Active Guru role with ID: ${roleId} not found`);
+      throw new HttpException('Guru role not found or already deactivated', HttpStatus.NOT_FOUND);
+    }
+
+    // Update the statusData to false instead of deleting
+    role.statusData = false;
+    await this.userRoleRepository.save(role);
+    this.logger.log(`${executor} Guru role with ID: ${roleId} deactivated successfully`);
+  }
+
+  async deactivateAdminRole(roleId: number, currentUser: any): Promise<void> {
+    const executor = `[${currentUser.fullName}][deactivateAdminRole]`;
+    this.logger.log(`${executor} Attempting to deactivate Admin role with ID: ${roleId}`);
+
+    // Fetch the role to be deactivated
+    const role = await this.userRoleRepository.findOne({
+      where: { id: roleId, role: UserRoleEnum.ADMIN, statusData: true },
+      relations: ['user'],
+    });
+
+    if (!role) {
+      this.logger.error(`${executor} Active Admin role with ID: ${roleId} not found`);
+      throw new HttpException('Admin role not found or already deactivated', HttpStatus.NOT_FOUND);
+    }
+
+    // Update the statusData to false instead of deleting
+    role.statusData = false;
+    await this.userRoleRepository.save(role);
+    this.logger.log(`${executor} Admin role with ID: ${roleId} deactivated successfully`);
+  }
   
 
   async updateRoleGuru(

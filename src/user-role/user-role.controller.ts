@@ -75,6 +75,34 @@ export class UserRoleController {
       };
     }
 
+    @Delete('guru')
+    @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN)
+    async deactivateGuruRole(
+      @Query('roleId') roleId: number,
+      @Req() req: any,
+    ) {
+      const currentUser = req.user;
+      await this.userRoleService.deactivateGuruRole(roleId, currentUser);
+      return {
+        statusCode: 200,
+        message: `Guru role with ID: ${roleId} deactivated successfully`,
+      };
+    }
+  
+    @Delete('admin')
+    @Roles(UserRoleEnum.SUPER_ADMIN)
+    async deactivateAdminRole(
+      @Query('roleId') roleId: number,
+      @Req() req: any,
+    ) {
+      const currentUser = req.user;
+      await this.userRoleService.deactivateAdminRole(roleId, currentUser);
+      return {
+        statusCode: 200,
+        message: `Admin role with ID: ${roleId} deactivated successfully`,
+      };
+    }
+
     // @UseGuards(JwtAuthGuard)
     // @Get('search')
     // async searchUserByFullName(@Query('fullName') fullName: string) {
