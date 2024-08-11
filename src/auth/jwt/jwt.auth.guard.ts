@@ -15,7 +15,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
   handleRequest(err, user, info, context) {
     const request = context.switchToHttp().getRequest();
-    const token = request.headers.authorization?.split(' ')[1];
+    const token = request.headers.authorization?.split(' ')[1];    
     
     // Check if the token is expired
     if (info && info.name === 'TokenExpiredError') {
@@ -34,7 +34,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
 
     // Attach userId to request object
-    request.user = user;
+    request.user = user;    
     return user;
   }
 }

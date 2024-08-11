@@ -2,19 +2,24 @@ import { Controller, Post, Body, Param, Delete, Get, Query, UseGuards, Req, Vali
 import { UserRoleService } from './user-role.service';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt.auth.guard';
 import { CreateUserRoleDto } from './dto/create-user-role.dto';
+import { RolesGuard } from 'src/auth/guard/roles.guard';
+import { Roles } from 'src/auth/decorator/roles.decorator';
+import { UserRoleEnum } from './enum/user-role.enum';
 
 @Controller('user-roles')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class UserRoleController {
     constructor(private readonly userRoleService: UserRoleService) {}
 
     @Post('create')
-    @UseGuards(JwtAuthGuard)
+    @Roles(UserRoleEnum.SUPER_ADMIN)
     @UsePipes(ValidationPipe)
     async createRole(
         @Body() createRoleDto: CreateUserRoleDto,
         @Req() req,
     ) {
         const currentUser = req.user;
+        
         const newRole = await this.userRoleService.createRole(
             createRoleDto.role,
             createRoleDto.userId,

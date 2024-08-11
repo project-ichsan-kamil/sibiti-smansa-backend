@@ -5,10 +5,11 @@ import { JwtStrategy } from './jwt/jwt.strategy';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { Users } from 'src/users/entities/user.entity';
+import { UserRole } from 'src/user-role/entities/user-role.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Users]),
+    TypeOrmModule.forFeature([Users, UserRole]),
     JwtModule.register({
       secret: Buffer.from('eW91ci0yNTYtYml0LXNlY3JldA==', 'base64').toString('ascii'), //TOOD: Change this secret key
       signOptions: { expiresIn: '1h' },
