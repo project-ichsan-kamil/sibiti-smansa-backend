@@ -1,56 +1,81 @@
-// create-exam.dto.ts
-import { IsString, IsInt, IsDate, IsArray, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsEnum,
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsDate,
+  IsPositive,
+} from 'class-validator';
+import { ExamType, ExamDuration, SumOption, SumQuestion, StatusExam, ParticipantType } from '../enum/exam.enum';
 
 export class CreateExamDto {
   @IsString()
   @IsNotEmpty()
-  title: string;
+  name: string;
 
-  @IsString()
+  @IsEnum(ExamType)
   @IsNotEmpty()
-  examType: string;
-
-  @IsString()
-  @IsNotEmpty()
-  subject: number;
+  type: ExamType;
 
   @IsDate()
   @IsNotEmpty()
-  startDate: string;
-
-  @IsDate()
-  @IsNotEmpty()
-  endDate: string;
-
-  @IsInt()
-  @IsNotEmpty()
-  duration: number;
-
-  @IsInt()
-  @IsNotEmpty()
-  numberOfQuestions: number;
-
-  @IsInt()
-  @IsNotEmpty()
-  numberOfOptions: number;
+  startDate: Date;
 
   @IsString()
-  @IsNotEmpty()
-  participantType: string;
+  @IsPositive()
+  time: string;
 
-  @IsArray()
+  @IsEnum(ExamDuration)
   @IsNotEmpty()
-  participants: string[];
+  duration: ExamDuration;
+
+  @IsEnum(SumQuestion)
+  @IsNotEmpty()
+  sumQuestion: SumQuestion;
+
+  @IsEnum(SumOption)
+  @IsNotEmpty()
+  sumOption: SumOption;
+
+  @IsInt()
+  @IsPositive()
+  passingGrade: number;
+
+  @IsBoolean()
+  @IsNotEmpty()
+  randomize: boolean;
+
+  @IsEnum(StatusExam)
+  @IsNotEmpty()
+  statusExam: StatusExam;
+
+  @IsEnum(ParticipantType)
+  @IsNotEmpty()
+  participantType: ParticipantType;
+
+  @IsBoolean()
+  @IsNotEmpty()
+  sameAsOtherExam: boolean;
+
+  @IsBoolean()
+  @IsNotEmpty()
+  shareExam: boolean;
+
+  @IsOptional()
+  @IsInt()
+  otherExamId?: number;
 
   @IsInt()
   @IsNotEmpty()
-  totalScore: number;
+  ownerId: number;
 
   @IsInt()
   @IsNotEmpty()
-  passingScore: number;
+  subjectId: number;
 
-  @IsString()
+  @IsInt()
   @IsNotEmpty()
-  examStatus: string;
+  submitterId: number;
 }

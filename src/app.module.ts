@@ -43,13 +43,7 @@ import { RolesGuard } from './auth/guard/roles.guard';
     ExcelModule,
   ],
   controllers: [],
-  providers: [
-    EncryptionService,
-    // {
-    //   provide: APP_GUARD,
-    //   useClass: RolesGuard,
-    // },
-  ],
+  providers: [EncryptionService],
 })
 export class AppModule {
   constructor(private dataSource: DataSource) {}

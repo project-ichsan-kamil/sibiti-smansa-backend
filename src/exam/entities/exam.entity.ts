@@ -1,66 +1,99 @@
-import { Entity, Column, PrimaryGeneratedColumn, BeforeInsert, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  BeforeInsert,
+} from 'typeorm';
+import { Subject } from 'src/subject/entities/subject.entity';
+import { Users } from 'src/users/entities/user.entity';
+import { ExamDuration, ExamType, ParticipantType, StatusExam, SumOption, SumQuestion } from '../enum/exam.enum';
 
 @Entity()
 export class Exam {
-  @PrimaryGeneratedColumn({type : "bigint"})
+  @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;
 
-  @Column()
-  title: string;
+  @Column({ unique: true, nullable: false })
+  name: string;
 
-  @Column()
-  examType: string;
+  @Column({ type: 'enum', enum: ExamType })
+  type: ExamType;
 
-  @Column()
-  subject: number;
+  @Column({ type: 'timestamp' })
+  startDate: Date;
 
-  @Column()
-  startDate: string;
+  @Column({ type: 'time' })
+  time: string;
 
-  @Column()
-  endDate: string;
+  @Column({ type: 'enum', enum: ExamDuration })
+  duration: ExamDuration;
 
-  @Column()
-  duration: number;
+  @Column({ type: 'enum', enum: SumQuestion })
+  sumQuestion: SumQuestion;
 
-  @Column()
-  numberOfQuestions: number;
+  @Column({ type: 'enum', enum: SumOption })
+  sumOption: SumOption;
 
-  @Column()
-  numberOfOptions: number;
+  @Column({ type: 'int' })
+  passingGrade: number;
 
-  @Column()
-  participantType: string;
+  @Column({ type: 'boolean' })
+  randomize: boolean;
 
-  @Column('simple-array')
-  participants: string[];
+  @Column({ type: 'enum', enum: StatusExam }) 
+  statusExam: StatusExam;
 
-  @Column()
-  totalScore: number;
+  @Column({ type: 'enum', enum: ParticipantType })
+  participantType: ParticipantType;
 
-  @Column()
-  passingScore: number;
+  @Column({ type: 'boolean' })
+  sameAsOtherExam: boolean;
 
-  @Column()
-  examStatus: string;
+  @Column({ type: 'boolean' })
+  shareExam: boolean;
 
-  @Column({default : true})
-  dataStatus: boolean;
+  @Column({ default: true })
+  statusData: boolean;
 
-  @CreateDateColumn({ type: 'timestamp'})
+  // Relasi ke Users sebagai owner ujian
+  @ManyToOne(() => Users)
+  @JoinColumn({ name: 'ownerId' })
+  owner: Users;
+
+  // Relasi ke Exam lainnya
+  @ManyToOne(() => Exam)
+  @JoinColumn({ name: 'otherExamId' })
+  otherExam: Exam;
+
+  // Relasi ke Subject
+  @ManyToOne(() => Subject)
+  @JoinColumn({ name: 'subjectId' })
+  subject: Subject;
+
+  // Relasi ke submitter (User)
+  @ManyToOne(() => Users)
+  @JoinColumn({ name: 'submitterId' })
+  submitterId: Users;
+
+  // Audit Fields
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @Column({default : "SYSTEM"})
-  createdBy : string;
+  @Column({ default: 'SYSTEM' })
+  createdBy: string;
 
-  @UpdateDateColumn({ type: 'timestamp'})
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
-  @Column({default : "SYSTEM"})
-  updatedBy : string;
+  @Column({ default: 'SYSTEM' })
+  updatedBy: string;
 
   @BeforeInsert()
   generateProfileId() {
-      this.id = new Date().valueOf();
+    this.id = new Date().valueOf();
   }
 }
