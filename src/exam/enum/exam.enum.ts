@@ -6,10 +6,11 @@ export enum ExamType {
   }
   
   export enum StatusExam {
-    WAITING_SUBMITTER = 'WAITING_SUBMITTER',
-    PUBLISH = 'PUBLISH',
-    CLOSE = 'CLOSE',
-    DRAFT = 'DRAFT',
+    WAITING_SUBMITTER = 'WAITING_SUBMITTER',    //menunggu disubmit soalnya
+    SHOW = 'SHOW',                              //show soal, belum bisa start
+    PUBLISH = 'PUBLISH',                        //sudah bsa start
+    CLOSE = 'CLOSE',                            //ujian done, masih show
+    DRAFT = 'DRAFT',                            //ujian di take down dari siswa
   }
   
   export enum ParticipantType {

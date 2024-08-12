@@ -15,7 +15,7 @@ import {
   
   @Entity('participant_exam')
   export class ParticipantExam {
-    @PrimaryGeneratedColumn()
+    @PrimaryGeneratedColumn({type : "bigint"})
     id: number;
   
     @Column({ type: 'enum', enum: ParticipantType })
