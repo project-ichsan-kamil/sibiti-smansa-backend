@@ -42,13 +42,13 @@ import {
     @CreateDateColumn({ type: 'timestamp' })
     createdAt: Date;
   
-    @Column({ type: 'text', default: 'SYSTEM' })
+    @Column({ default: 'SYSTEM' })
     createdBy: string;
   
     @UpdateDateColumn({ type: 'timestamp' })
     updatedAt: Date;
   
-    @Column({ type: 'text', default: 'SYSTEM' })
+    @Column({ default: 'SYSTEM' })
     updatedBy: string;
 
     @BeforeInsert()

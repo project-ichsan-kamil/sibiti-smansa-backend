@@ -1,14 +1,5 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsEnum,
-  IsBoolean,
-  IsInt,
-  IsOptional,
-  IsDate,
-  IsPositive,
-} from 'class-validator';
-import { ExamType, ExamDuration, SumOption, SumQuestion, StatusExam, ParticipantType } from '../enum/exam.enum';
+import { IsString, IsNotEmpty, IsEnum, IsInt, IsBoolean, IsDate, IsOptional } from 'class-validator';
+import { ExamDuration, ExamType, ParticipantType, StatusExam, SumOption, SumQuestion } from '../enum/exam.enum';
 
 export class CreateExamDto {
   @IsString()
@@ -16,16 +7,11 @@ export class CreateExamDto {
   name: string;
 
   @IsEnum(ExamType)
-  @IsNotEmpty()
   type: ExamType;
 
   @IsDate()
   @IsNotEmpty()
   startDate: Date;
-
-  @IsString()
-  @IsPositive()
-  time: string;
 
   @IsEnum(ExamDuration)
   @IsNotEmpty()
@@ -40,7 +26,7 @@ export class CreateExamDto {
   sumOption: SumOption;
 
   @IsInt()
-  @IsPositive()
+  @IsNotEmpty()
   passingGrade: number;
 
   @IsBoolean()
@@ -63,19 +49,19 @@ export class CreateExamDto {
   @IsNotEmpty()
   shareExam: boolean;
 
+  @IsString()
   @IsOptional()
-  @IsInt()
-  otherExamId?: number;
+  submitterId?: string;
 
-  @IsInt()
-  @IsNotEmpty()
-  ownerId: number;
+  @IsString()
+  @IsOptional()
+  ownerId?: string;
 
-  @IsInt()
-  @IsNotEmpty()
-  subjectId: number;
+  @IsString()
+  @IsOptional()
+  classIds?: string;  // Comma-separated string of class IDs
 
-  @IsInt()
-  @IsNotEmpty()
-  submitterId: number;
+  @IsString()
+  @IsOptional()
+  userIds?: string;   // Comma-separated string of user IDs
 }

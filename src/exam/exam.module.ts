@@ -3,10 +3,14 @@ import { ExamService } from './exam.service';
 import { ExamController } from './exam.controller';
 import { Exam } from './entities/exam.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ParticipantExam } from 'src/participant-exam/entities/participant-exam.entity';
+import { ParticipantExamService } from 'src/participant-exam/participant-exam.service';
+import { Class } from 'src/class/entities/class.entity';
+import { Users } from 'src/users/entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Exam])],
+  imports: [TypeOrmModule.forFeature([Exam, ParticipantExam, Class, Users])],
   controllers: [ExamController],
-  providers: [ExamService],
+  providers: [ExamService, ParticipantExamService],
 })
 export class ExamModule {}
