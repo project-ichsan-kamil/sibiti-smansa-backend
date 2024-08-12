@@ -9,6 +9,7 @@ import {
   OneToMany,
 } from 'typeorm';
 import { UserClass } from './user-class.entity';
+import { ParticipantExam } from 'src/participant-exam/entities/participant-exam.entity';
 
 @Entity()
 export class Class {
@@ -30,6 +31,10 @@ export class Class {
   //relation
   @OneToMany(() => UserClass, (userClass) => userClass.classEntity)
   userClasses: UserClass[];
+
+  @OneToMany(() => ParticipantExam, participantExam => participantExam.class)
+  participantExams: ParticipantExam[];
+  
 
   //audit
   @CreateDateColumn({ type: 'timestamp' })

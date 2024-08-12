@@ -12,8 +12,7 @@ import { EncryptionService } from './common/encryption/encryption.service';
 import { SubjectModule } from './subject/subject.module';
 import { SeederModule } from './seeder/seeder.module';
 import { ExcelModule } from './excel/excel.module';
-import { APP_GUARD } from '@nestjs/core';
-import { RolesGuard } from './auth/guard/roles.guard';
+import { ParticipantExamModule } from './participant-exam/participant-exam.module';
 
 @Module({
   imports: [
@@ -41,6 +40,7 @@ import { RolesGuard } from './auth/guard/roles.guard';
     SubjectModule,
     SeederModule,
     ExcelModule,
+    ParticipantExamModule,
   ],
   controllers: [],
   providers: [EncryptionService],

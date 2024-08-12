@@ -1,8 +1,9 @@
 import { ProfileUser } from 'src/profile-user/entities/profile-user.entity';
 import { UserRole } from 'src/user-role/entities/user-role.entity';
-import { Class } from 'src/class/entities/class.entity';
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, BeforeInsert, OneToOne, OneToMany, ManyToMany, JoinTable } from 'typeorm';
 import { UserClass } from 'src/class/entities/user-class.entity';
+import { Exam } from 'src/exam/entities/exam.entity';
+import { ParticipantExam } from 'src/participant-exam/entities/participant-exam.entity';
 
 @Entity()
 export class Users {
@@ -31,7 +32,13 @@ export class Users {
 
     @OneToMany(() => UserClass, userClass => userClass.user)
     userClasses: UserClass[];
-    
+
+    @OneToMany(() => Exam, exam => exam.owner)
+    examsOwned: Exam[];
+
+    @OneToMany(() => ParticipantExam, participantExam => participantExam.user)
+    participantExams: ParticipantExam[];
+
 
     // audit fields
     @CreateDateColumn({ type: 'timestamp' })
