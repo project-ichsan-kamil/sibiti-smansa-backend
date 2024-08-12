@@ -10,6 +10,10 @@ import { AuthModule } from './auth/auth.module';
 import { UserRoleModule } from './user-role/user-role.module';
 import { EncryptionService } from './common/encryption/encryption.service';
 import { SubjectModule } from './subject/subject.module';
+import { SeederModule } from './seeder/seeder.module';
+import { ExcelModule } from './excel/excel.module';
+import { APP_GUARD } from '@nestjs/core';
+import { RolesGuard } from './auth/guard/roles.guard';
 
 @Module({
   imports: [
@@ -35,9 +39,17 @@ import { SubjectModule } from './subject/subject.module';
     AuthModule,
     UserRoleModule,
     SubjectModule,
+    SeederModule,
+    ExcelModule,
   ],
   controllers: [],
-  providers: [EncryptionService],
+  providers: [
+    EncryptionService,
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: RolesGuard,
+    // },
+  ],
 })
 export class AppModule {
   constructor(private dataSource: DataSource) {}

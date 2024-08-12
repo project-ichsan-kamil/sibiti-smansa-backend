@@ -1,53 +1,28 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Subject } from './entities/subject.entity';
-import { CreateSubjectDto } from './dto/create-subject.dto';
 
 @Injectable()
 export class SubjectService {
+  private readonly logger = new Logger(SubjectService.name);
   constructor(
     @InjectRepository(Subject)
     private readonly subjectRepository: Repository<Subject>,
   ) {}
 
-  async create(createSubjectDto: CreateSubjectDto): Promise<Subject> {
-    const { name, description } = createSubjectDto;
-    const subject = this.subjectRepository.create({ name, description });
-    return await this.subjectRepository.save(subject);
-  }
+  async findAll(currentUser: any): Promise<Partial<Subject>[]> {
+    const executor = `[${currentUser.fullName}][findAll]`;
+    this.logger.log(`${executor} Fetching all active subjects`);
 
-  async findAll(): Promise<Subject[]> {
-    return await this.subjectRepository.find({ where: { statusData: true } });
-  }
+    const subjects = await this.subjectRepository.find({ where: { statusData: true } });
 
-  async findOne(id: number): Promise<Subject> {
-    const subject = await this.subjectRepository.findOne({ where: { id } });
-    if (!subject) {
-      throw new NotFoundException(`Subject with ID ${id} not found`);
-    }
-    return subject;
-  }
-
-  async findByName(name: string): Promise<Subject[]> {
-    return await this.subjectRepository.find({ where: { name } });
-  }
-
-  async update(
-    id: number,
-    name: string,
-    description: string,
-    updatedBy: string,
-  ): Promise<Subject> {
-    const subject = await this.findOne(id);
-    subject.name = name;
-    subject.description = description;
-    subject.updatedBy = updatedBy;
-    return await this.subjectRepository.save(subject);
-  }
-
-  async remove(id: number): Promise<void> {
-    const subject = await this.findOne(id);
-    await this.subjectRepository.remove(subject);
+    this.logger.log(`${executor} Found ${subjects.length} active subjects`);
+    return subjects.map(subject => ({
+      id: subject.id,
+      name: subject.name,
+      description: subject.description,
+      statusData: subject.statusData,
+    }));
   }
 }
