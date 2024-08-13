@@ -44,7 +44,7 @@
 //   @Column({ type: 'boolean' })
 //   randomize: boolean;
 
-//   @Column({ type: 'enum', enum: StatusExam }) 
+//   @Column({ type: 'enum', enum: StatusExam })
 //   statusExam: StatusExam;
 
 //   @Column({ type: 'enum', enum: ParticipantType })
@@ -111,8 +111,16 @@ import {
 } from 'typeorm';
 import { Subject } from 'src/subject/entities/subject.entity';
 import { Users } from 'src/users/entities/user.entity';
-import { ExamDuration, ExamType, ParticipantType, StatusExam, SumOption, SumQuestion } from '../enum/exam.enum';
+import {
+  ExamDuration,
+  ExamType,
+  ParticipantType,
+  StatusExam,
+  SumOption,
+  SumQuestion,
+} from '../enum/exam.enum';
 import { ParticipantExam } from 'src/participant-exam/entities/participant-exam.entity';
+import { Question } from 'src/question/entities/question.entity';
 
 @Entity()
 export class Exam {
@@ -143,7 +151,7 @@ export class Exam {
   @Column({ type: 'boolean' })
   randomize: boolean;
 
-  @Column({ type: 'enum', enum: StatusExam }) 
+  @Column({ type: 'enum', enum: StatusExam })
   statusExam: StatusExam;
 
   @Column({ type: 'enum', enum: ParticipantType })
@@ -159,7 +167,7 @@ export class Exam {
   statusData: boolean;
 
   // Relasi ke Users sebagai owner ujian - Bidirectional
-  @ManyToOne(() => Users, user => user.examsOwned)
+  @ManyToOne(() => Users, (user) => user.examsOwned)
   @JoinColumn({ name: 'ownerId' })
   owner: Users;
 
@@ -176,11 +184,14 @@ export class Exam {
   // Relasi ke submitter (User) - Unidirectional
   @ManyToOne(() => Users)
   @JoinColumn({ name: 'submitterId' })
-  submitter: Users;  // Menyimpan userId dari pengguna yang akan submit soal
+  submitter: Users; // Menyimpan userId dari pengguna yang akan submit soal
 
-  @OneToMany(() => ParticipantExam, participantExam => participantExam.exam)
+  @OneToMany(() => ParticipantExam, (participantExam) => participantExam.exam)
   participants: ParticipantExam[];
 
+  // Relasi ke Question - Bidirectional
+  @OneToMany(() => Question, (question) => question.exam)
+  questions: Question[];
 
   // Audit Fields
   @CreateDateColumn({ type: 'timestamp' })
