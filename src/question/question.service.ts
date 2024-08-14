@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { Question } from './entities/question.entity';
 import { Exam } from '../exam/entities/exam.entity';
 import { UserRoleEnum } from 'src/user-role/enum/user-role.enum';
+import { StatusExam } from 'src/exam/enum/exam.enum';
 
 @Injectable()
 export class QuestionService {
@@ -72,14 +73,14 @@ export class QuestionService {
     currentUser: any,
   ): Promise<Question> {
     const executor = `[${currentUser.fullName}][updateQuestionByExamIdAndQuestionNumber]`;
-
+  
     // Check if the exam exists and is active
     const exam = await this.examRepository.findOne({ where: { id: examId, statusData: true } });
     if (!exam) {
       this.logger.error(`${executor} Exam with ID ${examId} not found or inactive`);
       throw new HttpException('Exam not found or inactive', HttpStatus.BAD_REQUEST);
     }
-
+  
     // Check if the user is allowed to update the question
     if (
       currentUser.role === UserRoleEnum.GURU &&
@@ -88,28 +89,63 @@ export class QuestionService {
       this.logger.error(`${executor} Unauthorized update attempt by non-submitter Guru`);
       throw new HttpException('You are not authorized to update questions for this exam', HttpStatus.FORBIDDEN);
     }
-
+  
     // Find the question by examId and questionNumber
     const question = await this.questionRepository.findOne({
       where: { exam: { id: examId }, questionNumber: questionNumber, statusData: true },
     });
-
+  
     if (!question) {
       this.logger.error(`${executor} Question with examId ${examId} and questionNumber ${questionNumber} not found`);
       throw new HttpException('Question not found', HttpStatus.NOT_FOUND);
     }
-
+  
+    // Validate the options based on the exam's sumOption
+    if (exam.sumOption >= 4 && (!updateQuestionDto.A || !updateQuestionDto.B || !updateQuestionDto.C || !updateQuestionDto.D)) {
+      this.logger.error(`${executor} Required options A, B, C, D are missing for the exam`);
+      throw new HttpException('Options A, B, C, D are required', HttpStatus.BAD_REQUEST);
+    }
+    if (exam.sumOption >= 5 && !updateQuestionDto.E) {
+      this.logger.error(`${executor} Option E is missing for the exam`);
+      throw new HttpException('Option E is required', HttpStatus.BAD_REQUEST);
+    }
+    if (exam.sumOption >= 6 && !updateQuestionDto.F) {
+      this.logger.error(`${executor} Option F is missing for the exam`);
+      throw new HttpException('Option F is required', HttpStatus.BAD_REQUEST);
+    }
+  
+    // Ensure the question text is provided
+    if (!updateQuestionDto.question) {
+      this.logger.error(`${executor} Question text is required`);
+      throw new HttpException('Question text is required', HttpStatus.BAD_REQUEST);
+    }
+  
+    // Mark the question as complete
+    updateQuestionDto.complete = true;
+  
     // Update the question with new data
     const updatedQuestion = this.questionRepository.merge(question, {
       ...updateQuestionDto,
       updatedBy: currentUser.fullName,
     });
-
+  
     await this.questionRepository.save(updatedQuestion);
     this.logger.log(`${executor} Question ${questionNumber} for exam ${exam.name} updated successfully`);
-
+  
+    // Check if all questions are complete and update exam status to draft if they are
+    const incompleteQuestions = await this.questionRepository.count({
+      where: { exam: { id: examId }, complete: false, statusData: true },
+    });
+  
+    if (incompleteQuestions === 0) {
+      exam.statusExam = StatusExam.DRAFT;
+      await this.examRepository.save(exam);
+      this.logger.log(`${executor} All questions are complete. Exam status updated to DRAFT.`);
+    }
+  
     return updatedQuestion;
   }
+  
 
   async getQuestionByExamIdAndQuestionNumber(       //TODO: if submiter multiple
     examId: number,

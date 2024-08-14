@@ -46,6 +46,9 @@ import {
   
     @Column({ type: 'enum', enum: AnswerKey, nullable: true })
     key: AnswerKey;
+
+    @Column({ default: false })
+    complete: boolean;
   
     @Column({ default: true })
     statusData: boolean;
