@@ -18,7 +18,7 @@ export class ExamService {
     private readonly participantExamService: ParticipantExamService,
   ) {}
 
-  async createExam(
+  async createExamQuisAndUH(
     createExamDto: CreateExamDto,
     currentUser: any,
   ): Promise<Exam> {
@@ -116,20 +116,15 @@ export class ExamService {
             HttpStatus.BAD_REQUEST,
           );
         }
-
-        // If sameAsOtherExam is true and otherExamId is valid, set statusExam to SHOW
-        createExamDto.statusExam = StatusExam.DRAFT;
       }
 
-      // Set statusExam to DRAFT initially if sameAsOtherExam is false
-      if (!createExamDto.sameAsOtherExam) {
-        createExamDto.statusExam = StatusExam.WAITING_SUBMITTER;
-      }
+      const statusExam = createExamDto.sameAsOtherExam ? StatusExam.DRAFT : StatusExam.WAITING_SUBMITTER;
 
       const exam = queryRunner.manager.create(Exam, {
         ...createExamDto,
         startDate,
         owner: owner,
+        statusExam,
         createdBy: currentUser.fullName,
         updatedBy: currentUser.fullName,
         subject: subject, // Associate the subject
@@ -168,5 +163,25 @@ export class ExamService {
       // Release the query runner after transaction is complete
       await queryRunner.release();
     }
+  }
+
+  async publishExam(examId: number, currentUser: any): Promise<Exam> {
+    const executor = `[${currentUser.fullName}][publishExam]`;
+
+    // Find the exam by ID
+    const exam = await this.examRepository.findOne({ where: { id: examId, statusData: true } });
+    if (!exam) {
+      this.logger.error(`${executor} Exam with ID ${examId} not found or inactive`);
+      throw new HttpException('Exam not found or inactive', HttpStatus.NOT_FOUND);
+    }
+
+    // Update the status to "PUBLISH"
+    exam.statusExam = StatusExam.PUBLISH;
+    exam.updatedBy = currentUser.fullName;
+
+    const updatedExam = await this.examRepository.save(exam);
+    this.logger.log(`${executor} Exam with ID ${examId} has been published`);
+
+    return updatedExam;
   }
 }

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Req, UseGuards, ValidationPipe } from '@nestjs/common';
+import { Controller, Post, Body, Req, UseGuards, ValidationPipe, HttpStatus, Patch, Query } from '@nestjs/common';
 import { ExamService } from './exam.service';
 import { CreateExamDto } from './dto/create-exam.dto';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt.auth.guard';
@@ -11,10 +11,31 @@ import { UserRoleEnum } from 'src/user-role/enum/user-role.enum';
 export class ExamController {
   constructor(private readonly examService: ExamService) {}
 
-  @Post('create')
+  @Post('create-quiz-daily-test')
   @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
   async createExam(@Body(ValidationPipe) createExamDto: CreateExamDto, @Req() req) {
     const currentUser = req.user;
-    return this.examService.createExam(createExamDto, currentUser);
+    const result = await this.examService.createExamQuisAndUH(createExamDto, currentUser);
+    return {
+      statusCode: HttpStatus.CREATED,
+      message: 'Exam created successfully',
+      data: result,
+    };
+  }
+
+  @Patch('publish')
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
+  async publishExam(
+    @Query('examId') examId: number,
+    @Req() req: any
+  ) {
+    const currentUser = req.user;
+    const updatedExam = await this.examService.publishExam(examId, currentUser);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Exam published successfully',
+      data: updatedExam,
+    };
   }
 }

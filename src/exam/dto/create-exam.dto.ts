@@ -37,10 +37,6 @@ export class CreateExamDto {
   @IsNotEmpty()
   randomize: boolean;
 
-  @IsEnum(StatusExam)
-  @IsNotEmpty()
-  statusExam: StatusExam;
-
   @IsEnum(ParticipantType)
   @IsNotEmpty()
   participantType: ParticipantType;
