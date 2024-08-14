@@ -118,12 +118,12 @@ export class ExamService {
         }
 
         // If sameAsOtherExam is true and otherExamId is valid, set statusExam to SHOW
-        createExamDto.statusExam = StatusExam.SHOW;
+        createExamDto.statusExam = StatusExam.DRAFT;
       }
 
       // Set statusExam to DRAFT initially if sameAsOtherExam is false
       if (!createExamDto.sameAsOtherExam) {
-        createExamDto.statusExam = StatusExam.DRAFT;
+        createExamDto.statusExam = StatusExam.WAITING_SUBMITTER;
       }
 
       const exam = queryRunner.manager.create(Exam, {
