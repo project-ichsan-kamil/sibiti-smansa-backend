@@ -157,7 +157,7 @@ export class Exam {
   @Column({ type: 'enum', enum: ParticipantType })
   participantType: ParticipantType;
 
-  @Column({ type: 'boolean' })
+  @Column({ type: 'boolean', default : false })
   sameAsOtherExam: boolean;
 
   @Column({ type: 'boolean' })

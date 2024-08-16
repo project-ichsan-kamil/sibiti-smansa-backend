@@ -5,7 +5,7 @@ import { Exam } from '../exam/entities/exam.entity';
 import { Class } from 'src/class/entities/class.entity';
 import { Users } from 'src/users/entities/user.entity';
 import { ParticipantType } from '../exam/enum/exam.enum';
-import { CreateExamDto } from '../exam/dto/create-exam.dto';
+import { BaseExamDto } from 'src/exam/dto/create-base-exam.dto';
 
 @Injectable()
 export class ParticipantExamService {
@@ -15,7 +15,7 @@ export class ParticipantExamService {
 
   async createParticipantExams(
     exam: Exam,
-    createExamDto: CreateExamDto,
+    createExamDto: BaseExamDto,
     currentUser: any,
     manager: EntityManager,
   ): Promise<void> {

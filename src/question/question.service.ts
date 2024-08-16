@@ -18,7 +18,7 @@ export class QuestionService {
     private readonly examRepository: Repository<Exam>,
   ) {}
 
-  async create(createQuestionDto: CreateQuestionDto, currentUser: any): Promise<void> {   //TODO: if case subbmiter multiple
+  async create(createQuestionDto: CreateQuestionDto, currentUser: any): Promise<void> { 
     const { examId } = createQuestionDto;
     const executor = `[${currentUser.fullName}][createQuestion]`;
 

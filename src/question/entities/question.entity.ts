@@ -67,8 +67,9 @@ import {
     updatedBy: string;
 
     @BeforeInsert()
-    generateProfileId() {
-      this.id = new Date().valueOf();
+    generateUniqueId() {
+      // Generate a unique ID combining the current time and a random number
+      this.id = Date.now() + Math.floor(Math.random() * 10000); 
     }
   }
   

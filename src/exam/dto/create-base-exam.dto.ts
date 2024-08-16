@@ -1,13 +1,10 @@
-import { IsString, IsNotEmpty, IsEnum, IsInt, IsBoolean, IsDate, IsOptional, IsNumber, IsIn } from 'class-validator';
-import { ExamDuration, ExamType, ParticipantType, StatusExam, SumOption, SumQuestion } from '../enum/exam.enum';
+import { IsString, IsNotEmpty, IsEnum, IsInt, IsBoolean, IsOptional } from 'class-validator';
+import { ExamDuration, ParticipantType, SumOption, SumQuestion } from '../enum/exam.enum';
 
-export class CreateExamDto {
+export class BaseExamDto {
   @IsString()
   @IsNotEmpty()
   name: string;
-
-  @IsEnum(ExamType)
-  type: ExamType;
 
   @IsString()
   @IsNotEmpty()
@@ -43,15 +40,7 @@ export class CreateExamDto {
 
   @IsBoolean()
   @IsNotEmpty()
-  sameAsOtherExam: boolean;
-
-  @IsBoolean()
-  @IsNotEmpty()
   shareExam: boolean;
-
-  @IsInt()
-  @IsOptional()
-  otherExamId?: number;
 
   @IsString()
   @IsOptional()

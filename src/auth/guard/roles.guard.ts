@@ -23,18 +23,18 @@ export class RolesGuard implements CanActivate {
 
     if (!user || !user.roles) {
       this.logger.error(`${executor} Access denied. Reason: User does not have any roles.`);
-      throw new HttpException('Pengguna tidak memiliki role yang diizinkan untuk mengakses resource ini', HttpStatus.FORBIDDEN);
+      throw new HttpException('User does not have any roles permitted to access this resource', HttpStatus.FORBIDDEN);
     }
 
     if (!hasRole()) {
-      // Menentukan peran yang hilang dan memberikan pesan yang lebih informatif
+      // Determine missing roles and provide a more informative message
       const missingRoles = roles.filter(role => !user.roles.includes(role));
       const missingRolesString = missingRoles.join(', ');
 
       this.logger.error(`${executor} Access denied. Required roles: ${missingRolesString}. User roles: ${user.roles.join(', ')}`);
       
       throw new HttpException(
-        `Akses ditolak. Role yang diperlukan: ${missingRolesString}. Anda memiliki role: ${user.roles.join(', ')}`,
+        `Access denied. Required roles: ${missingRolesString}. You have roles: ${user.roles.join(', ')}`,
         HttpStatus.FORBIDDEN,
       );
     }
