@@ -127,7 +127,7 @@ export class Exam {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;
 
-  @Column({ unique: true, nullable: false })
+  @Column({nullable: false })
   name: string;
 
   @Column({ type: 'enum', enum: ExamType })

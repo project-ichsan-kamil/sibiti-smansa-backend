@@ -6,6 +6,7 @@ import { RolesGuard } from 'src/auth/guard/roles.guard';
 import { Roles } from 'src/auth/decorator/roles.decorator';
 import { UserRoleEnum } from 'src/user-role/enum/user-role.enum';
 import { CreateUasUtsDto } from './dto/create-uas-uts-exam.dto';
+import { BaseEditExamDto } from './dto/base-edit-exam.dto';
 
 @Controller('exam')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -41,6 +42,40 @@ export class ExamController {
       data: result,
     };
   }
+
+   // Endpoint untuk mengedit Quiz atau Daily Exam
+   @Patch('edit-quiz-daily-exam')
+   @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
+   async editExamQuisAndUH(
+     @Body(ValidationPipe) baseEditExamDto: BaseEditExamDto, // Gunakan DTO yang sesuai untuk edit
+     @Req() req: any,
+     @Query('examId') examId: number,
+   ) {
+     const currentUser = req.user;
+     const result = await this.examService.editExamQuisAndUH(baseEditExamDto, examId, currentUser);
+     return {
+       statusCode: HttpStatus.OK,
+       message: 'Quiz/Daily Exam edited successfully',
+       data: result,
+     };
+   }
+ 
+   // Endpoint untuk mengedit UAS/UTS Exam
+   @Patch('edit-uas-uts-exam')
+   @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN)
+   async editExamUasUts(
+     @Body(ValidationPipe) baseEditExamDto: BaseEditExamDto, // Gunakan DTO yang sesuai untuk edit
+     @Req() req: any,
+     @Query('examId') examId: number,
+   ) {
+     const currentUser = req.user;
+     const result = await this.examService.editExamUasUts(baseEditExamDto, examId, currentUser);
+     return {
+       statusCode: HttpStatus.OK,
+       message: 'UAS/UTS Exam edited successfully',
+       data: result,
+     };
+   }
 
   // @Patch('publish')
   // @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)

@@ -1,6 +1,6 @@
 import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { Exam } from './entities/exam.entity';
 import { CreateQuizDailyExamDto } from './dto/create-quiz-daily-exam.dto';
 import { ParticipantExamService } from '../participant-exam/participant-exam.service';
@@ -11,6 +11,8 @@ import { UserRoleEnum } from 'src/user-role/enum/user-role.enum';
 import { CreateUasUtsDto } from './dto/create-uas-uts-exam.dto';
 import { UserRole } from 'src/user-role/entities/user-role.entity';
 import { Question } from 'src/question/entities/question.entity';
+import { BaseEditExamDto } from './dto/base-edit-exam.dto';
+import { log } from 'console';
 
 @Injectable()
 export class ExamService {
@@ -27,35 +29,50 @@ export class ExamService {
     currentUser: any,
   ): Promise<Exam> {
     const executor = `[${currentUser.fullName}][createExam]`;
-    this.logger.log(`${executor} Starting exam creation for: ${createQuisDailyExamDto.name}`);
-  
-    const queryRunner = this.examRepository.manager.connection.createQueryRunner();
+    this.logger.log(
+      `${executor} Starting exam creation for: ${createQuisDailyExamDto.name}`,
+    );
+
+    const queryRunner =
+      this.examRepository.manager.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
-  
+
     try {
       // Validasi otherExam jika sameAsOtherExam true
-      const otherExam = await this.validateOtherExam(createQuisDailyExamDto, executor);
-  
+      const otherExam = await this.validateOtherExam(
+        createQuisDailyExamDto,
+        executor,
+      );
+
       // Validasi data umum ujian
-      const { subject, owner } = await this.validateCommonExamData(createQuisDailyExamDto, currentUser, queryRunner);
-  
+      const { subject, owner } = await this.validateCommonExamData(
+        createQuisDailyExamDto,
+        currentUser,
+        queryRunner,
+      );
+
       // Membuat dan menyimpan ujian
       const savedExam = await this.createAndSaveExam(
-        createQuisDailyExamDto, 
-        currentUser, 
-        owner, 
-        subject, 
-        otherExam, 
-        queryRunner, 
-        executor
+        createQuisDailyExamDto,
+        currentUser,
+        owner,
+        subject,
+        otherExam,
+        queryRunner,
+        executor,
       );
-  
+
       // Salin soal dan opsi jika sameAsOtherExam bernilai true
       if (createQuisDailyExamDto.sameAsOtherExam) {
-        await this.copyQuestionsFromOtherExam(otherExam, savedExam, queryRunner, executor);
+        await this.copyQuestionsFromOtherExam(
+          otherExam,
+          savedExam,
+          queryRunner,
+          executor,
+        );
       }
-  
+
       // Buat ujian partisipan
       await this.participantExamService.createParticipantExams(
         savedExam,
@@ -63,99 +80,358 @@ export class ExamService {
         currentUser,
         queryRunner.manager,
       );
-  
+
       // Komit transaksi jika semua berjalan baik
       await queryRunner.commitTransaction();
-      this.logger.log(`${executor} Transaction committed successfully. Exam ID: ${savedExam.id}, Exam Name: ${savedExam.name}`);
-  
+      this.logger.log(
+        `${executor} Transaction committed successfully. Exam ID: ${savedExam.id}, Exam Name: ${savedExam.name}`,
+      );
+
       return savedExam;
     } catch (error) {
-      this.logger.error(`${executor} Error during exam creation: ${error.message}`);
+      this.logger.error(
+        `${executor} Error during exam creation: ${error.message}`,
+      );
       await queryRunner.rollbackTransaction();
-      throw new HttpException(error.message || 'Error during exam creation', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        error.message || 'Error during exam creation',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     } finally {
       await queryRunner.release();
     }
   }
 
-  async createExamUasUts(createUasUtsDto: CreateUasUtsDto, currentUser: any): Promise<Exam> {
-    const executor = `[${currentUser.fullName}][createExam]`;
-    this.logger.log(`${executor} Starting UAS/UTS exam creation`);
+  async createExamUasUts(
+    createUasUtsDto: CreateUasUtsDto,
+    currentUser: any,
+  ): Promise<Exam> {
+    const executor = `[${currentUser.fullName}][createExamUasUts]`;
+    this.logger.log(`${executor} - Initiating UAS/UTS exam creation.`);
 
-    const queryRunner = this.examRepository.manager.connection.createQueryRunner();
+    const queryRunner =
+      this.examRepository.manager.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
+      // Validasi data umum ujian
+      const { subject, owner } = await this.validateCommonExamData(
+        createUasUtsDto,
+        currentUser,
+        queryRunner,
+      );
+      this.logger.log(`${executor} Common exam data validated successfully`);
 
-      const { subject, owner } = await this.validateCommonExamData(createUasUtsDto, currentUser, queryRunner);
+      // Validasi submitter sebagai guru yang sah
+      const submitter = await this.validateSubmitter(
+        createUasUtsDto.submitterId,
+        createUasUtsDto.subjectId,
+        queryRunner,
+        executor,
+      );
+      this.logger.log(`${executor} Submitter validated successfully`);
 
-      const submitter = await this.validateSubmitter(createUasUtsDto.submitterId, createUasUtsDto.subjectId, queryRunner, executor);
-
+      // Membuat entitas ujian UTS/UAS
       const exam = queryRunner.manager.create(Exam, {
         ...createUasUtsDto,
         startDate: new Date(createUasUtsDto.startDate),
         owner: owner,
+        sameAsOtherExam: false,
         statusExam: StatusExam.WAITING_SUBMITTER,
         createdBy: currentUser.fullName,
         updatedBy: currentUser.fullName,
         subject: subject,
-        submitter: submitter, // Associate the submitter
+        submitter: submitter,
       });
 
+      // Simpan entitas ujian
       const savedExam = await queryRunner.manager.save(exam);
-      this.logger.log(`${executor} UAS/UTS Exam created successfully`);
+      this.logger.log(
+        `${executor} UAS/UTS exam created successfully. Exam ID: ${savedExam.id}, Name: ${savedExam.name}`,
+      );
 
-      // Handle ParticipantExam creation if needed
+      // Membuat ujian peserta jika diperlukan
       await this.participantExamService.createParticipantExams(
         savedExam,
         createUasUtsDto,
         currentUser,
         queryRunner.manager,
       );
+      this.logger.log(`${executor} Participant exams created successfully`);
 
+      // Komit transaksi
       await queryRunner.commitTransaction();
+      this.logger.log(`${executor} Transaction committed successfully`);
+
       return savedExam;
     } catch (error) {
-      this.logger.error(`${executor} Error during UAS/UTS exam creation: ${error.message}`);
+      this.logger.error(
+        `${executor} Error during UAS/UTS exam creation: ${error.message}`,
+      );
       await queryRunner.rollbackTransaction();
-      throw new HttpException(error.message || 'Error during exam creation', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        error.message || 'Error during exam creation',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     } finally {
       await queryRunner.release();
     }
   }
-  
+
+  async editExamQuisAndUH(
+    editQuisDailyExamDto: BaseEditExamDto,
+    examId: number,
+    currentUser: any,
+  ): Promise<Exam> {
+    const executor = `[${currentUser.fullName}][editExamQuisAndUH]`;
+    this.logger.log(`${executor} Initiating exam edit`);
+
+    // Validasi awal untuk memastikan examId ada
+    if (!examId || isNaN(examId)) {
+      this.logger.error(`${executor} Invalid or missing examId`);
+      throw new HttpException(
+        'Invalid or missing exam ID',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const exam = await this.examRepository.findOne({
+      where: { id: examId, statusData: true },
+      relations: ['owner'],
+    });
+
+    if (!exam) {
+      this.logger.error(`${executor} Exam not found with ID: ${examId}`);
+      throw new HttpException('Exam not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Guru yang menjadi owner yang bisa mengedit
+    if (currentUser.id !== exam.owner.id) {
+      this.logger.error(
+        `${executor} Forbidden: User with role ${currentUser.role} and ID ${currentUser.id} does not have permission to edit exam ID: ${examId}`,
+      );
+      throw new HttpException(
+        'Forbidden: You do not have permission to edit this exam',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    // Pastikan ujian dalam status DRAFT
+    if (exam.statusExam !== StatusExam.DRAFT) {
+      this.logger.error(
+        `${executor} Exam with ID: ${examId} is not in DRAFT status, current status: ${exam.statusExam}`,
+      );
+      throw new HttpException(
+        'Only exams in DRAFT status can be edited',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Update fields
+    const updatedExam = await this.updateExamFields(
+      editQuisDailyExamDto,
+      exam,
+      currentUser,
+      executor,
+    );
+
+    // Save updated exam to database
+    const savedExam = await this.examRepository.save(updatedExam);
+    this.logger.log(
+      `${executor} Exam edited successfully. Exam ID: ${savedExam.id}`,
+    );
+
+    return savedExam;
+  }
+
+  async editExamUasUts(
+    editUasUtsDto: BaseEditExamDto,
+    examId: number,
+    currentUser: any,
+  ): Promise<Exam> {
+    const executor = `[${currentUser.fullName}][editExamUasUts]`;
+    this.logger.log(`${executor} Initiating UAS/UTS exam edit`);
+
+    // Validasi awal untuk memastikan examId ada
+    if (!examId || isNaN(examId)) {
+      this.logger.error(`${executor} Invalid or missing examId`);
+      throw new HttpException(
+        'Invalid or missing exam ID',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const exam = await this.examRepository.findOne({
+      where: { id: examId, statusData: true },
+    });
+
+    if (!exam) {
+      this.logger.error(`${executor} Exam not found with ID: ${examId}`);
+      throw new HttpException('Exam not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Pastikan ujian dalam status DRAFT
+    if (exam.statusExam !== StatusExam.DRAFT) {
+      this.logger.error(
+        `${executor} Exam with ID: ${examId} is not in DRAFT status, current status: ${exam.statusExam}`,
+      );
+      throw new HttpException(
+        'Only exams in DRAFT status can be edited',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Update fields
+    const updatedExam = await this.updateExamFields(
+      editUasUtsDto,
+      exam,
+      currentUser,
+      executor,
+    );
+
+    // Save updated exam to database
+    const savedExam = await this.examRepository.save(updatedExam);
+    this.logger.log(
+      `${executor} UAS/UTS Exam edited successfully. Exam ID: ${savedExam.id}`,
+    );
+
+    return savedExam;
+  }
+
+  async updateExamFields(
+    editExamDto: BaseEditExamDto,
+    exam: Exam,
+    currentUser: any,
+    executor: string,
+  ): Promise<Exam> {
+    // Validasi dan Update Nama Ujian
+    if (editExamDto.name) {
+      const existingExam = await this.examRepository.findOne({
+        where: {
+          name: editExamDto.name,
+          id: Not(exam.id),
+          statusData: true,
+          type: exam.type,
+        },
+      });
+
+      if (existingExam) {
+        this.logger.error(
+          `${executor} Exam name ${editExamDto.name} already exists for another exam`,
+        );
+        throw new HttpException(
+          'Exam name already exists',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      exam.name = editExamDto.name;
+      this.logger.log(`${executor} Updated exam name to ${editExamDto.name}`);
+    }
+
+    // Validasi dan Update Start Date
+    if (editExamDto.startDate) {
+      const startDate = new Date(editExamDto.startDate);
+      if (isNaN(startDate.getTime()) || startDate < new Date()) {
+        this.logger.error(
+          `${executor} Invalid start date provided: ${editExamDto.startDate}`,
+        );
+        throw new HttpException(
+          'Invalid start date format or date is in the past',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      exam.startDate = startDate;
+    }
+
+    // Validasi dan Update Passing Grade
+    if (editExamDto.passingGrade !== undefined) {
+      if (editExamDto.passingGrade < 0 || editExamDto.passingGrade > 100) {
+        this.logger.error(
+          `${executor} Invalid passing grade: ${editExamDto.passingGrade}`,
+        );
+        throw new HttpException(
+          'Passing grade must be between 0 and 100',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      exam.passingGrade = editExamDto.passingGrade;
+    }
+
+    // Validasi dan Update Duration
+    if (editExamDto.duration !== undefined) {
+      if (editExamDto.duration <= 0) {
+        this.logger.error(
+          `${executor} Invalid duration: ${editExamDto.duration}`,
+        );
+        throw new HttpException(
+          'Duration must be a positive number',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      exam.duration = editExamDto.duration;
+    }
+
+    // Validasi dan Update Share Exam
+    if (editExamDto.shareExam !== undefined) {
+      exam.shareExam = editExamDto.shareExam;
+    }
+
+    // Update audit data
+    exam.updatedBy = currentUser.fullName;
+
+    this.logger.log(`${executor} Updated exam audit information`);
+
+    return exam;
+  }
+
   // Validasi otherExam jika sameAsOtherExam true
-  private async validateOtherExam(createQuisDailyExamDto: CreateQuizDailyExamDto, executor: string): Promise<Exam | null> {
+  private async validateOtherExam(
+    createQuisDailyExamDto: CreateQuizDailyExamDto,
+    executor: string,
+  ): Promise<Exam | null> {
     if (!createQuisDailyExamDto.sameAsOtherExam) {
-      this.logger.log(`${executor} sameAsOtherExam is false, skipping otherExam validation`);
+      this.logger.log(
+        `${executor} sameAsOtherExam is false, skipping otherExam validation`,
+      );
       return null;
     }
-  
+
     if (!createQuisDailyExamDto.otherExamId) {
-      this.logger.error(`${executor} Validation failed: otherExamId is required when sameAsOtherExam is true.`);
+      this.logger.error(
+        `${executor} Validation failed: otherExamId is required when sameAsOtherExam is true.`,
+      );
       throw new Error('otherExamId is required when sameAsOtherExam is true.');
     }
-  
-    this.logger.log(`${executor} Validating referenced exam with ID: ${createQuisDailyExamDto.otherExamId}`);
+
+    this.logger.log(
+      `${executor} Validating referenced exam with ID: ${createQuisDailyExamDto.otherExamId}`,
+    );
     const otherExam = await this.examRepository.findOne({
       where: { id: createQuisDailyExamDto.otherExamId, statusData: true },
     });
-  
+
     if (!otherExam) {
-      this.logger.error(`${executor} Validation failed: Referenced exam not found. ID: ${createQuisDailyExamDto.otherExamId}`);
+      this.logger.error(
+        `${executor} Validation failed: Referenced exam not found. ID: ${createQuisDailyExamDto.otherExamId}`,
+      );
       throw new Error('Referenced exam not found.');
     }
-  
+
     if (otherExam.statusExam === StatusExam.WAITING_SUBMITTER) {
-      this.logger.error(`${executor} Validation failed: Referenced exam is in invalid state. ID: ${createQuisDailyExamDto.otherExamId}`);
+      this.logger.error(
+        `${executor} Validation failed: Referenced exam is in invalid state. ID: ${createQuisDailyExamDto.otherExamId}`,
+      );
       throw new Error('Referenced exam is in invalid state.');
     }
-  
-    this.logger.log(`${executor} Referenced exam validated successfully. ID: ${createQuisDailyExamDto.otherExamId}`);
+
+    this.logger.log(
+      `${executor} Referenced exam validated successfully. ID: ${createQuisDailyExamDto.otherExamId}`,
+    );
     return otherExam;
   }
-  
+
   // Membuat dan menyimpan entitas ujian
   private async createAndSaveExam(
     createQuisDailyExamDto: CreateQuizDailyExamDto,
@@ -164,12 +440,16 @@ export class ExamService {
     subject: Subject,
     otherExam: Exam | null,
     queryRunner: any,
-    executor: string
+    executor: string,
   ): Promise<Exam> {
-    this.logger.log(`${executor} Creating exam entity for: ${createQuisDailyExamDto.name}`);
-  
-    const statusExam = createQuisDailyExamDto.sameAsOtherExam ? StatusExam.DRAFT : StatusExam.WAITING_SUBMITTER;
-  
+    this.logger.log(
+      `${executor} Creating exam entity for: ${createQuisDailyExamDto.name}`,
+    );
+
+    const statusExam = createQuisDailyExamDto.sameAsOtherExam
+      ? StatusExam.DRAFT
+      : StatusExam.WAITING_SUBMITTER;
+
     const exam = queryRunner.manager.create(Exam, {
       ...createQuisDailyExamDto,
       startDate: new Date(createQuisDailyExamDto.startDate),
@@ -179,33 +459,39 @@ export class ExamService {
       updatedBy: currentUser.fullName,
       subject: subject,
       submitter: owner,
-      otherExam: otherExam // Optional relationship with otherExam
+      otherExam: otherExam, // Optional relationship with otherExam
     });
-  
+
     const savedExam = await queryRunner.manager.save(exam);
-    this.logger.log(`${executor} Exam created and saved successfully. ID: ${savedExam.id}, Name: ${savedExam.name}, Status: ${savedExam.statusExam}`);
+    this.logger.log(
+      `${executor} Exam created and saved successfully. ID: ${savedExam.id}, Name: ${savedExam.name}, Status: ${savedExam.statusExam}`,
+    );
     return savedExam;
   }
-  
+
   // Salin soal dan opsi dari otherExam
   private async copyQuestionsFromOtherExam(
     otherExam: Exam,
     savedExam: Exam,
     queryRunner: any,
-    executor: string
+    executor: string,
   ): Promise<void> {
     if (!otherExam) {
-      this.logger.error(`${executor} No other exam found for copying questions.`);
+      this.logger.error(
+        `${executor} No other exam found for copying questions.`,
+      );
       throw new Error('No other exam to copy questions from.');
     }
-  
-    this.logger.log(`${executor} Copying questions from referenced exam ID: ${otherExam.id} to new exam ID: ${savedExam.id}`);
-  
+
+    this.logger.log(
+      `${executor} Copying questions from referenced exam ID: ${otherExam.id} to new exam ID: ${savedExam.id}`,
+    );
+
     const otherExamWithQuestions = await this.examRepository.findOne({
       where: { id: otherExam.id },
       relations: ['questions'],
     });
-  
+
     const copiedQuestions = otherExamWithQuestions.questions.map((question) => {
       return queryRunner.manager.create(Question, {
         exam: savedExam, // Asosiasi dengan ujian baru
@@ -224,17 +510,18 @@ export class ExamService {
         updatedBy: question.updatedBy,
       });
     });
-  
-    await queryRunner.manager.save(copiedQuestions);
-    this.logger.log(`${executor} ${copiedQuestions.length} questions copied successfully to new exam ID: ${savedExam.id}`);
-  }
 
+    await queryRunner.manager.save(copiedQuestions);
+    this.logger.log(
+      `${executor} ${copiedQuestions.length} questions copied successfully to new exam ID: ${savedExam.id}`,
+    );
+  }
 
   private async validateCommonExamData(
     examDto: any,
     currentUser: any,
-    queryRunner: any
-  ): Promise<{ subject: Subject, owner: Users }> {
+    queryRunner: any,
+  ): Promise<{ subject: Subject; owner: Users }> {
     const executor = `[${currentUser.fullName}][validateCommonExamData]`;
 
     // Check if exam with the same name already exists
@@ -243,20 +530,29 @@ export class ExamService {
     });
     if (existingExam) {
       this.logger.error(`${executor} Exam with the same name already exists`);
-      throw new HttpException('An exam with the same name already exists', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'An exam with the same name already exists',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     // Convert startDate string to Date object
     const startDate = new Date(examDto.startDate);
     if (isNaN(startDate.getTime())) {
       this.logger.error(`${executor} Invalid start date`);
-      throw new HttpException('Invalid start date format', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Invalid start date format',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     // Validate passing grade
     if (examDto.passingGrade > 100) {
       this.logger.error(`${executor} Passing grade cannot exceed 100`);
-      throw new HttpException('Passing grade cannot exceed 100', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Passing grade cannot exceed 100',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     // Check if subject exists
@@ -265,7 +561,10 @@ export class ExamService {
     });
     if (!subject) {
       this.logger.error(`${executor} Subject not found or inactive`);
-      throw new HttpException('Subject not found or inactive', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Subject not found or inactive',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     // Check if owner exists and is active
@@ -274,9 +573,12 @@ export class ExamService {
     });
     if (!owner) {
       this.logger.error(`${executor} Owner not found or not verified`);
-      throw new HttpException('Owner not found or not verified', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Owner not found or not verified',
+        HttpStatus.BAD_REQUEST,
+      );
     }
-
+    this.logger.log(`${executor} - Common exam data validated.`);
     return { subject, owner };
   }
 
@@ -284,7 +586,7 @@ export class ExamService {
     submitterId: number,
     subjectId: number,
     queryRunner: any,
-    executor: string
+    executor: string,
   ): Promise<Users> {
     // Validate submitter by checking the user_role table
     const submitterRole = await queryRunner.manager.findOne(UserRole, {
@@ -298,11 +600,15 @@ export class ExamService {
     });
 
     if (!submitterRole) {
-      this.logger.error(`${executor} Submitter with ID ${submitterId} is either not a valid teacher or does not teach the subject`);
-      throw new HttpException(`Submitter with ID ${submitterId} is either not a valid teacher or does not teach the subject`, HttpStatus.BAD_REQUEST);
+      this.logger.error(
+        `${executor} Submitter with ID ${submitterId} is either not a valid teacher or does not teach the subject`,
+      );
+      throw new HttpException(
+        `Submitter with ID ${submitterId} is either not a valid teacher or does not teach the subject`,
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     return submitterRole.user;
   }
-  
 }
