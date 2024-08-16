@@ -22,127 +22,61 @@ export class ExamService {
     private readonly participantExamService: ParticipantExamService,
   ) {}
 
-async createExamQuisAndUH(
-  createQuisDailyExamDto: CreateQuizDailyExamDto,
-  currentUser: any,
-): Promise<Exam> {
-  const executor = `[${currentUser.fullName}][createExam]`;
-  this.logger.log(`${executor} Starting exam creation`);
-
-  const queryRunner = this.examRepository.manager.connection.createQueryRunner();
-  await queryRunner.connect();
-  await queryRunner.startTransaction();
-
-  try {
-
-    let otherExam = null;
-    // Validasi sameAsOtherExam
-    if (createQuisDailyExamDto.sameAsOtherExam) {
-      if (!createQuisDailyExamDto.otherExamId) {
-        throw new Error('otherExamId is required when sameAsOtherExam is true.');
+  async createExamQuisAndUH(
+    createQuisDailyExamDto: CreateQuizDailyExamDto,
+    currentUser: any,
+  ): Promise<Exam> {
+    const executor = `[${currentUser.fullName}][createExam]`;
+    this.logger.log(`${executor} Starting exam creation for: ${createQuisDailyExamDto.name}`);
+  
+    const queryRunner = this.examRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+  
+    try {
+      // Validasi otherExam jika sameAsOtherExam true
+      const otherExam = await this.validateOtherExam(createQuisDailyExamDto, executor);
+  
+      // Validasi data umum ujian
+      const { subject, owner } = await this.validateCommonExamData(createQuisDailyExamDto, currentUser, queryRunner);
+  
+      // Membuat dan menyimpan ujian
+      const savedExam = await this.createAndSaveExam(
+        createQuisDailyExamDto, 
+        currentUser, 
+        owner, 
+        subject, 
+        otherExam, 
+        queryRunner, 
+        executor
+      );
+  
+      // Salin soal dan opsi jika sameAsOtherExam bernilai true
+      if (createQuisDailyExamDto.sameAsOtherExam) {
+        await this.copyQuestionsFromOtherExam(otherExam, savedExam, queryRunner, executor);
       }
-
-      otherExam = await this.examRepository.findOne({
-        where: { id: createQuisDailyExamDto.otherExamId, statusData : true },
-      });
-
-      if (!otherExam) {
-        throw new Error('Referenced exam not found.');
-      }
-
-      if (otherExam.statusExam === StatusExam.WAITING_SUBMITTER) {
-        throw new Error('Referenced exam is in invalid state.');
-      }
-
-      this.logger.log(`${executor} Valid referenced exam found, proceeding to copy questions.`);
+  
+      // Buat ujian partisipan
+      await this.participantExamService.createParticipantExams(
+        savedExam,
+        createQuisDailyExamDto,
+        currentUser,
+        queryRunner.manager,
+      );
+  
+      // Komit transaksi jika semua berjalan baik
+      await queryRunner.commitTransaction();
+      this.logger.log(`${executor} Transaction committed successfully. Exam ID: ${savedExam.id}, Exam Name: ${savedExam.name}`);
+  
+      return savedExam;
+    } catch (error) {
+      this.logger.error(`${executor} Error during exam creation: ${error.message}`);
+      await queryRunner.rollbackTransaction();
+      throw new HttpException(error.message || 'Error during exam creation', HttpStatus.INTERNAL_SERVER_ERROR);
+    } finally {
+      await queryRunner.release();
     }
-
-    // Validasi data umum ujian
-    const { subject, owner } = await this.validateCommonExamData(createQuisDailyExamDto, currentUser, queryRunner);
-
-    // Tentukan status ujian berdasarkan sameAsOtherExam
-    const statusExam = createQuisDailyExamDto.sameAsOtherExam
-      ? StatusExam.DRAFT
-      : StatusExam.WAITING_SUBMITTER;
-
-    // Membuat entitas ujian
-    const exam = queryRunner.manager.create(Exam, {
-      ...createQuisDailyExamDto,
-      startDate: new Date(createQuisDailyExamDto.startDate),
-      owner: owner,
-      statusExam,
-      createdBy: currentUser.fullName,
-      updatedBy: currentUser.fullName,
-      subject: subject,
-      submitter: owner,
-      otherExam: otherExam
-    });
-
-    // Simpan ujian ke database
-    const savedExam = await queryRunner.manager.save(exam);
-
-    // Salin soal dan opsi jika sameAsOtherExam bernilai true
-    if (createQuisDailyExamDto.sameAsOtherExam) {
-      const otherExam = await this.examRepository.findOne({
-        where: { id: createQuisDailyExamDto.otherExamId },
-        relations: ['questions'],
-      });
-
-      const copiedQuestions = otherExam.questions.map((question) => {
-        const newQuestion = queryRunner.manager.create(Question, {
-          exam: savedExam, // Asosiasi dengan ujian baru
-          questionNumber: question.questionNumber,
-          question: question.question,
-          A: question.A,
-          B: question.B,
-          C: question.C,
-          D: question.D,
-          E: question.E,
-          F: question.F,
-          key: question.key,
-          complete: question.complete,
-          statusData: question.statusData,
-          createdBy: currentUser.fullName,
-          updatedBy: currentUser.fullName,
-        });
-
-        return newQuestion;
-      });
-
-      // Simpan soal yang sudah disalin ke database
-      await queryRunner.manager.save(copiedQuestions);
-      this.logger.log(`${executor} Copied questions associated with new exam.`);
-    }
-
-    // Buat ujian partisipan
-    await this.participantExamService.createParticipantExams(
-      savedExam,
-      createQuisDailyExamDto,
-      currentUser,
-      queryRunner.manager,
-    );
-
-    // Komit transaksi jika semua berjalan baik
-    await queryRunner.commitTransaction();
-    this.logger.log(`${executor} Transaction committed successfully.`);
-    this.logger.log(`${executor} Exam created successfully with ID: ${savedExam.id}`);
-
-    
-    return savedExam;
-  } catch (error) {
-    this.logger.error(`${executor} Error during exam creation: ${error.message}`);
-    // Rollback transaksi jika terjadi kesalahan
-    await queryRunner.rollbackTransaction();
-    throw new HttpException(
-      error.message || 'Error during exam creation',
-      HttpStatus.INTERNAL_SERVER_ERROR,
-    );
-  } finally {
-    // Rilis query runner
-    await queryRunner.release();
   }
-}
-
 
   async createExamUasUts(createUasUtsDto: CreateUasUtsDto, currentUser: any): Promise<Exam> {
     const executor = `[${currentUser.fullName}][createExam]`;
@@ -189,6 +123,110 @@ async createExamQuisAndUH(
     } finally {
       await queryRunner.release();
     }
+  }
+  
+  // Validasi otherExam jika sameAsOtherExam true
+  private async validateOtherExam(createQuisDailyExamDto: CreateQuizDailyExamDto, executor: string): Promise<Exam | null> {
+    if (!createQuisDailyExamDto.sameAsOtherExam) {
+      this.logger.log(`${executor} sameAsOtherExam is false, skipping otherExam validation`);
+      return null;
+    }
+  
+    if (!createQuisDailyExamDto.otherExamId) {
+      this.logger.error(`${executor} Validation failed: otherExamId is required when sameAsOtherExam is true.`);
+      throw new Error('otherExamId is required when sameAsOtherExam is true.');
+    }
+  
+    this.logger.log(`${executor} Validating referenced exam with ID: ${createQuisDailyExamDto.otherExamId}`);
+    const otherExam = await this.examRepository.findOne({
+      where: { id: createQuisDailyExamDto.otherExamId, statusData: true },
+    });
+  
+    if (!otherExam) {
+      this.logger.error(`${executor} Validation failed: Referenced exam not found. ID: ${createQuisDailyExamDto.otherExamId}`);
+      throw new Error('Referenced exam not found.');
+    }
+  
+    if (otherExam.statusExam === StatusExam.WAITING_SUBMITTER) {
+      this.logger.error(`${executor} Validation failed: Referenced exam is in invalid state. ID: ${createQuisDailyExamDto.otherExamId}`);
+      throw new Error('Referenced exam is in invalid state.');
+    }
+  
+    this.logger.log(`${executor} Referenced exam validated successfully. ID: ${createQuisDailyExamDto.otherExamId}`);
+    return otherExam;
+  }
+  
+  // Membuat dan menyimpan entitas ujian
+  private async createAndSaveExam(
+    createQuisDailyExamDto: CreateQuizDailyExamDto,
+    currentUser: any,
+    owner: Users,
+    subject: Subject,
+    otherExam: Exam | null,
+    queryRunner: any,
+    executor: string
+  ): Promise<Exam> {
+    this.logger.log(`${executor} Creating exam entity for: ${createQuisDailyExamDto.name}`);
+  
+    const statusExam = createQuisDailyExamDto.sameAsOtherExam ? StatusExam.DRAFT : StatusExam.WAITING_SUBMITTER;
+  
+    const exam = queryRunner.manager.create(Exam, {
+      ...createQuisDailyExamDto,
+      startDate: new Date(createQuisDailyExamDto.startDate),
+      owner: owner,
+      statusExam,
+      createdBy: currentUser.fullName,
+      updatedBy: currentUser.fullName,
+      subject: subject,
+      submitter: owner,
+      otherExam: otherExam // Optional relationship with otherExam
+    });
+  
+    const savedExam = await queryRunner.manager.save(exam);
+    this.logger.log(`${executor} Exam created and saved successfully. ID: ${savedExam.id}, Name: ${savedExam.name}, Status: ${savedExam.statusExam}`);
+    return savedExam;
+  }
+  
+  // Salin soal dan opsi dari otherExam
+  private async copyQuestionsFromOtherExam(
+    otherExam: Exam,
+    savedExam: Exam,
+    queryRunner: any,
+    executor: string
+  ): Promise<void> {
+    if (!otherExam) {
+      this.logger.error(`${executor} No other exam found for copying questions.`);
+      throw new Error('No other exam to copy questions from.');
+    }
+  
+    this.logger.log(`${executor} Copying questions from referenced exam ID: ${otherExam.id} to new exam ID: ${savedExam.id}`);
+  
+    const otherExamWithQuestions = await this.examRepository.findOne({
+      where: { id: otherExam.id },
+      relations: ['questions'],
+    });
+  
+    const copiedQuestions = otherExamWithQuestions.questions.map((question) => {
+      return queryRunner.manager.create(Question, {
+        exam: savedExam, // Asosiasi dengan ujian baru
+        questionNumber: question.questionNumber,
+        question: question.question,
+        A: question.A,
+        B: question.B,
+        C: question.C,
+        D: question.D,
+        E: question.E,
+        F: question.F,
+        key: question.key,
+        complete: question.complete,
+        statusData: question.statusData,
+        createdBy: question.createdBy,
+        updatedBy: question.updatedBy,
+      });
+    });
+  
+    await queryRunner.manager.save(copiedQuestions);
+    this.logger.log(`${executor} ${copiedQuestions.length} questions copied successfully to new exam ID: ${savedExam.id}`);
   }
 
 
