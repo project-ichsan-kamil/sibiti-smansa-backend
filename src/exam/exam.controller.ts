@@ -77,19 +77,27 @@ export class ExamController {
      };
    }
 
-  // @Patch('publish')
-  // @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
-  // async publishExam(
-  //   @Query('examId') examId: number,
-  //   @Req() req: any
-  // ) {
-  //   const currentUser = req.user;
-  //   const updatedExam = await this.examService.publishExam(examId, currentUser);
-
-  //   return {
-  //     statusCode: HttpStatus.OK,
-  //     message: 'Exam published successfully',
-  //     data: updatedExam,
-  //   };
-  // }
+   @Patch('publish/quiz-uh')
+   @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
+   async publishQuizUh(@Query('examId') examId: number, @Req() req: any) {
+     const currentUser = req.user;
+     const result = await this.examService.publishExam(examId, currentUser, 'QUIZ_UH');
+     return {
+      statusCode: HttpStatus.OK,
+      message: `Quiz/UH exam has been successfully published.`,
+      data: result,
+    };
+   }
+ 
+   @Patch('publish/uts-uas')
+   @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN)
+   async publishUtsUas(@Query('examId') examId: number, @Req() req: any) {
+     const currentUser = req.user;
+     const result = await this.examService.publishExam(examId, currentUser, 'UTS_UAS');
+     return {
+      statusCode: HttpStatus.OK,
+      message: `UTS/UAS exam has been successfully published.`,
+      data: result,
+    };
+   }
 }

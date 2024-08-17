@@ -37,7 +37,7 @@ export class RolesGuard implements CanActivate {
         `Access denied. Required roles: ${missingRolesString}. You have roles: ${user.roles.join(', ')}`,
         HttpStatus.FORBIDDEN,
       );
-    }
+    }    
 
     return true;
   }

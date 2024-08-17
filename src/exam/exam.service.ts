@@ -299,6 +299,65 @@ export class ExamService {
     return savedExam;
   }
 
+  async publishExam(examId: number, currentUser: any, examType: 'QUIZ_UH' | 'UTS_UAS'): Promise<Exam> {
+    const executor = `[${currentUser.fullName}][publishExam]`;
+  
+    try {
+      // Log Inisialisasi Publikasi
+      this.logger.log(`${executor} Initiating exam publish process for exam ID: ${examId}`);
+  
+      // Validasi untuk memastikan bahwa examId diberikan dan valid
+      if (!examId || isNaN(examId)) {
+        this.logger.error(`${executor} Invalid or missing exam ID`);
+        throw new HttpException('Invalid or missing exam ID', HttpStatus.BAD_REQUEST);
+      }
+  
+      // Fetch exam by ID
+      const exam = await this.examRepository.findOne({
+        where: { id: examId, statusData: true },
+        relations: ['owner'],
+      });
+  
+      if (!exam) {
+        this.logger.error(`${executor} Exam not found with ID: ${examId}`);
+        throw new HttpException('Exam not found', HttpStatus.NOT_FOUND);
+      }
+  
+      // Validasi Status Ujian
+      if (exam.statusExam !== StatusExam.DRAFT) {
+        this.logger.error(`${executor} Exam ID: ${examId} is not in DRAFT status. Current status: ${exam.statusExam}`);
+        throw new HttpException('Only exams in DRAFT status can be published', HttpStatus.BAD_REQUEST);
+      }
+  
+      if (examType === 'QUIZ_UH') {
+        // Memeriksa apakah pengguna memiliki salah satu peran yang diizinkan
+        if (!['SUPER_ADMIN', 'ADMIN'].some(role => currentUser.roles.includes(role)) && currentUser.id !== exam.owner.id) {
+          this.logger.error(`${executor} Unauthorized publish attempt by user ID: ${currentUser.id} for exam ID: ${examId}`);
+          throw new HttpException('You do not have permission to publish this exam', HttpStatus.FORBIDDEN);
+        }
+      } else if (examType === 'UTS_UAS') {
+        // Memeriksa apakah pengguna memiliki peran SuperAdmin atau Admin untuk UTS/UAS
+        if (!['SUPER_ADMIN', 'ADMIN'].some(role => currentUser.roles.includes(role))) {          
+          this.logger.error(`${executor} Unauthorized UTS/UAS publish attempt by user ID: ${currentUser.id}`);
+          throw new HttpException('Only Super Admin and Admin can publish UTS/UAS exams', HttpStatus.FORBIDDEN);
+        }
+      }
+      
+      // Ubah Status Menjadi PUBLISHED
+      exam.statusExam = StatusExam.PUBLISH;
+      const updatedExam = await this.examRepository.save(exam);
+  
+      // Log Kesuksesan Publikasi
+      this.logger.log(`${executor} Exam ID: ${examId} published successfully by user ID: ${currentUser.id}`);
+  
+      return updatedExam;
+  
+    } catch (error) {
+      this.logger.error(`${executor} Error occurred: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
   async updateExamFields(
     editExamDto: BaseEditExamDto,
     exam: Exam,
