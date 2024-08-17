@@ -14,6 +14,7 @@ import { SeederModule } from './seeder/seeder.module';
 import { ExcelModule } from './excel/excel.module';
 import { ParticipantExamModule } from './participant-exam/participant-exam.module';
 import { QuestionModule } from './question/question.module';
+import { ParticipantAnswerModule } from './participant-answer/participant-answer.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { QuestionModule } from './question/question.module';
     ExcelModule,
     ParticipantExamModule,
     QuestionModule,
+    ParticipantAnswerModule,
   ],
   controllers: [],
   providers: [EncryptionService],
