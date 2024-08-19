@@ -24,7 +24,7 @@ export class ParticipantAnswerService {
     @InjectRepository(UserClass)
     private userClassRepository: Repository<UserClass>,
   ) {}
-  
+
   async createAnswer(createAnswerDto: CreateParticipantAnswerDto, currentUser: any) {
     const executor = `[${currentUser.fullName}][createAnswer]`;
   
@@ -32,8 +32,13 @@ export class ParticipantAnswerService {
   
     const { examId, latitude, longitude } = createAnswerDto;
   
+    // Jalankan operasi secara paralel
+    const [exam, existingAnswer] = await Promise.all([
+      this.examRepository.findOne({ where: { id: examId, statusData: true } }),
+      this.participantAnswerRepository.findOne({ where: { user: { id: currentUser.id }, exam: { id: examId } } })
+    ]);
+  
     // 1. Check apakah ujian ada
-    const exam = await this.examRepository.findOne({ where: { id: examId, statusData: true } });
     if (!exam) {
       this.logger.error(`${executor} Exam not found with ID: ${examId}`);
       throw new HttpException('Exam not found', HttpStatus.NOT_FOUND);
@@ -45,14 +50,7 @@ export class ParticipantAnswerService {
       throw new HttpException('Exam is not published', HttpStatus.BAD_REQUEST);
     }
   
-    // 3. Check if an answer already exists for the user and exam
-    const existingAnswer = await this.participantAnswerRepository.findOne({
-      where: {
-        user: { id : currentUser.id},
-        exam: { id : examId},
-      },
-    });
-  
+    // 3. Check jika jawaban sudah ada
     if (existingAnswer) {
       this.logger.log(`${executor} Existing answer found for exam ID: ${examId}, participant answer ID: ${existingAnswer.id}`);
       return existingAnswer;
@@ -68,14 +66,11 @@ export class ParticipantAnswerService {
     // 5. Simpan ke dalam database jika belum ada
     const randomQuestionNumber = this.generateRandomQuestionOrder(exam.sumQuestion, exam.randomize);
   
-    const listAnswers = [];
-    for (let i = 1; i <= exam.sumQuestion; i++) {
-      listAnswers.push({
-        no: i,        // No soal yang berurutan
-        ans: "",          // Jawaban kosong awal
-        hst: 0        // Belum terjawab
-      });
-    }
+    const listAnswers = Array.from({ length: exam.sumQuestion }, (_, i) => ({
+      no: i + 1,
+      ans: "",
+      hst: 0
+    }));
   
     const participantAnswer = this.participantAnswerRepository.create({
       user: currentUser,
@@ -96,54 +91,44 @@ export class ParticipantAnswerService {
     return savedParticipantAnswer;
   }
   
-  
   private async validateStudentInExam(currentUser: Users, exam: Exam): Promise<boolean> {
     if (exam.participantType === ParticipantType.CLASS) {
-      // Validasi berdasarkan kelas
-      const userClass = await this.userClassRepository.findOne({
-        where: {
-          user: { id: currentUser.id },
-          statusData: true, 
-        },
-        relations: ['classEntity']
-      });
-
-      console.log(userClass);
-      
-  
-      if (!userClass) {
-        return false; // User tidak terdaftar di kelas manapun
-      }
-
+      // Gabungkan validasi kelas dan ujian dalam satu query
       const participantClass = await this.participantExamRepository.findOne({
         where: {
-          class: { id : userClass.classEntity.id}, // Pastikan 'classEntityId' adalah ID kelas yang sesuai.
-          exam : { id : exam.id },
+          class: { userClasses: { user : { id : currentUser.id} } }, // Gabungkan validasi kelas dan pengguna
+          exam: { id: exam.id },
           statusData: true,
         },
       });
   
-      return !!participantClass; // Mengembalikan true jika user valid dalam kelas untuk ujian ini
-  
+      return !!participantClass;
     } else {
       // Validasi berdasarkan user partisipan di ujian
       const participantUser = await this.participantExamRepository.findOne({
         where: {
-          user: { id : currentUser.id},
-          exam: { id : exam.id},
-          statusData: true, // hanya validasi data yang aktif
+          user: { id: currentUser.id },
+          exam: { id: exam.id },
+          statusData: true,
         },
       });
   
-      return !!participantUser; // Mengembalikan true jika user valid sebagai partisipan untuk ujian ini
+      return !!participantUser;
     }
   }
 
   private generateRandomQuestionOrder(numQuestions: number, isRandomized: boolean): number[] {
-    const order = [...Array(numQuestions).keys()].map(i => i + 1);
+    const order = Array.from({ length: numQuestions }, (_, i) => i + 1);
+    
     if (isRandomized) {
-      return order.sort(() => Math.random() - 0.5); // Acak
+      // Fisher-Yates Shuffle untuk pengacakan yang lebih cepat dan efisien
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
     }
-    return order; // Berurutan
+  
+    return order;
   }
+  
 }
