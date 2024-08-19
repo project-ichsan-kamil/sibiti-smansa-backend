@@ -1,16 +1,14 @@
-import { IsNotEmpty, IsOptional, IsEnum, IsString, IsDateString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsEnum, IsString, IsDateString, Matches } from 'class-validator';
 import { StatusAbsent } from '../enum/absent.enum';
 
 export class CreateAbsentDto {
   @IsNotEmpty()
-  userId: number;
-
   @IsDateString()
-  date: string;
+  date: string;  // Tanggal dalam format YYYY-MM-DD
 
   @IsNotEmpty()
-  @IsDateString()
-  time: Date;
+  @Matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: 'Time must be in the format HH:mm' })
+  time: string;  // Waktu dalam format HH:mm
 
   @IsOptional()
   @IsString()
@@ -21,14 +19,11 @@ export class CreateAbsentDto {
   longitude: string;
 
   @IsOptional()
-  @IsEnum(StatusAbsent)
+  @IsEnum(StatusAbsent, { message: 'Status must be a valid enum value' })
   status: StatusAbsent;
 
   @IsOptional()
   @IsString()
   notes: string;
-
-  @IsOptional()
-  @IsString()
-  photoLink: string;
 }
+

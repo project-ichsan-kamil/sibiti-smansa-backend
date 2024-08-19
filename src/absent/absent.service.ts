@@ -1,47 +1,56 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Absent } from './entities/absent.entity';
 import { CreateAbsentDto } from './dto/create-absent.dto';
-import { UpdateAbsentDto } from './dto/update-absent.dto';
+import { StatusAbsent } from './enum/absent.enum';
 import { Users } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class AbsentService {
+  private readonly logger = new Logger(AbsentService.name);
   constructor(
     @InjectRepository(Absent)
     private readonly absentRepository: Repository<Absent>,
+    @InjectRepository(Users)
+    private readonly userRepository: Repository<Users>,
   ) {}
 
-  async create(createAbsentDto: CreateAbsentDto, createdBy: string): Promise<Absent> {
-    const absent = this.absentRepository.create({
-      ...createAbsentDto,
-      createdBy: createdBy,
-    });
-    return this.absentRepository.save(absent);
+  async create(createAbsentDto: CreateAbsentDto, currentUser: any): Promise<Absent> {
+    const executor = `[${currentUser.fullName}][createAbsent]`;
+    const start = Date.now();
+      
+    // Jalankan pencarian user dan existingAbsent secara paralel
+    const [user, existingAbsent] = await Promise.all([
+      this.userRepository.findOne({ where: { id: currentUser.id } }),
+      this.absentRepository.findOne({
+        where: {
+          user: { id: currentUser.id },
+          date: createAbsentDto.date,
+        },
+      }),
+    ]);
+  
+    if (!user) throw new NotFoundException('User not found');
+    if (existingAbsent) throw new BadRequestException('You have already submitted your attendance for today.');
+  
+    const savedAbsent = await this.absentRepository.save(
+      this.absentRepository.create({
+        ...createAbsentDto,
+        user,
+        createdBy: currentUser.fullName,
+        updatedBy: currentUser.fullName,
+      }),
+    );
+  
+    this.logger.log(`${executor} Absence created successfully. Execution time: ${Date.now() - start} ms`);
+    return savedAbsent;
   }
-
-  async findAll(): Promise<Absent[]> {
-    return this.absentRepository.find({ where: { statusData: true }, relations: ['user'] });
-  }
-
-  async findOne(id: number): Promise<Absent> {
-    const absent = await this.absentRepository.findOne({ where: { id, statusData: true }, relations: ['user'] });
-    if (!absent) {
-      throw new NotFoundException(`Absent record with ID ${id} not found`);
-    }
-    return absent;
-  }
-
-  async update(id: number, updateAbsentDto: UpdateAbsentDto, updatedBy: string): Promise<Absent> {
-    const absent = await this.findOne(id);
-    Object.assign(absent, updateAbsentDto, { updatedBy });
-    return this.absentRepository.save(absent);
-  }
-
-  async remove(id: number): Promise<void> {
-    const absent = await this.findOne(id);
-    absent.statusData = false;
-    await this.absentRepository.save(absent);
-  }
+  
+  
 }

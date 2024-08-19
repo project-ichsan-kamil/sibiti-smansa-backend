@@ -1,20 +1,28 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, BeforeInsert } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  BeforeInsert,
+} from 'typeorm';
 import { Users } from 'src/users/entities/user.entity';
 import { StatusAbsent } from '../enum/absent.enum';
 
 @Entity()
 export class Absent {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;
 
-  @ManyToOne(() => Users)
+  @ManyToOne(() => Users, { nullable: false })
   user: Users;
 
-  @Column('date')
+  @Column({ type: 'text' })
   date: string;
 
-  @Column('timestamp')
-  time: Date;
+  @Column({ type: 'text' })
+  time: string;
 
   @Column({ type: 'text', nullable: true })
   latitude: string;
@@ -32,27 +40,24 @@ export class Absent {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
-  @Column({ type: 'text', nullable: true })
-  photoLink: string;
-
   @Column({ default: true })
   statusData: boolean;
 
-  // audit
+  // audit fields
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @Column({ default: "SYSTEM" })
+  @Column({ default: 'SYSTEM' })
   createdBy: string;
 
   @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
-  @Column({ default: "SYSTEM" })
+  @Column({ default: 'SYSTEM' })
   updatedBy: string;
 
   @BeforeInsert()
   generateId() {
-      this.id = new Date().valueOf();
+    this.id = new Date().valueOf();
   }
 }
