@@ -202,6 +202,55 @@ export class ParticipantAnswerService {
     // 5. Return the result
     return participantAnswer;
   } 
+
+  async getScoreExam(examId: number, currentUser: any) {
+    const executor = `[${currentUser.fullName}][getScoreExam]`;
+    const start = Date.now();
+    
+    this.logger.log(`${executor} Starting the process to retrieve score for examId: ${examId}`);
+    
+    // 1. Retrieve both exam and participant data in parallel
+    const [exam, participantAnswer] = await Promise.all([
+      this.examRepository.findOne({ where: { id: examId, statusData: true } }),
+      this.participantAnswerRepository.findOne({
+        where: {
+          user: { id: currentUser.id },
+          exam: { id: examId },
+          statusData: true
+        },
+      })
+    ]);
+  
+    // 2. Validate both exam and participant data
+    if (!exam) {
+      this.logger.error(`${executor} Exam data not found for examId: ${examId}`);
+      throw new HttpException('Exam data not found', HttpStatus.NOT_FOUND);
+    }
+  
+    if (!participantAnswer) {
+      this.logger.error(`${executor} Participant data not found for examId: ${examId} and userId: ${currentUser.id}`);
+      throw new HttpException('Participant data not found', HttpStatus.NOT_FOUND);
+    }
+  
+    const passingGrade = exam.passingGrade;
+    const score = participantAnswer.score;
+    
+    // 3. Check if the participant has passed the exam
+    const hasPassed = score >= passingGrade;
+    this.logger.log(`${executor} Participant has ${hasPassed ? 'passed' : 'not passed'} the exam with score: ${score}`);
+    
+    const finish = Date.now();
+    const executionTime = finish - start;
+    this.logger.log(`${executor} Process completed. Execution time: ${executionTime} ms`);
+    
+    // 4. Return the result
+    return {
+      message: hasPassed ? 'Lolos passing grade' : 'Tidak lolos passing grade',
+      score: score,
+      passingGrade: passingGrade,
+      status: hasPassed ? 'Passed' : 'Not Passed',
+    };
+  }
   
   private async validateStudentInExam(currentUser: Users, exam: Exam): Promise<boolean> {
     if (exam.participantType === ParticipantType.CLASS) {

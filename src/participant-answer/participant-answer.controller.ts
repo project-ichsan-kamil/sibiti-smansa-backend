@@ -7,6 +7,8 @@ import {
   ValidationPipe,
   Patch,
   UsePipes,
+  Get,
+  Query,
 } from '@nestjs/common';
 import { ParticipantAnswerService } from './participant-answer.service';
 import { CreateParticipantAnswerDto } from './dto/create-participant-answer.dto';
@@ -75,6 +77,23 @@ export class ParticipantAnswerController {
     return {
       statusCode: 200,
       message: 'Exam completed successfully',
+      data: result,
+    };
+  }
+
+  @Get('score')
+  @Roles(UserRoleEnum.SISWA)
+  @UsePipes(ValidationPipe)
+  async getCoreExam(
+    @Query('examId') examId: number,
+    @Req() req: any,
+  ) {
+    const currentUser = req.user;
+    const result = await this.answerService.getScoreExam(examId, currentUser);
+    
+    return {
+      statusCode: 200,
+      message: 'Score exam data retrieved successfully',
       data: result,
     };
   }
