@@ -9,7 +9,8 @@ import { StatusAnswer } from './enum/status-answer.enum';
 import { ParticipantType, StatusExam } from 'src/exam/enum/exam.enum';
 import { ParticipantExam } from 'src/participant-exam/entities/participant-exam.entity';
 import { UserClass } from 'src/class/entities/user-class.entity';
-import { ECDH } from 'crypto';
+import { UpdateParticipantAnswerDto } from './dto/update-participant-answer.dto';
+import { Question } from 'src/question/entities/question.entity';
 
 @Injectable()
 export class ParticipantAnswerService {
@@ -21,8 +22,8 @@ export class ParticipantAnswerService {
     private examRepository: Repository<Exam>,
     @InjectRepository(ParticipantExam)
     private participantExamRepository: Repository<ParticipantExam>,
-    @InjectRepository(UserClass)
-    private userClassRepository: Repository<UserClass>,
+    @InjectRepository(Question)
+    private questionRepository: Repository<Question>,
   ) {}
 
   async createAnswer(createAnswerDto: CreateParticipantAnswerDto, currentUser: any) {
@@ -90,6 +91,97 @@ export class ParticipantAnswerService {
   
     return savedParticipantAnswer;
   }
+
+  async updateAnswer(updateAnswerDto: UpdateParticipantAnswerDto, currentUser: any) {
+    const { examId, no, ans, hst } = updateAnswerDto;
+    const executor = `[${currentUser.fullName}][updateAnswer]`;
+
+    const startTime = Date.now();
+  
+    this.logger.log(`${executor} Starting to update answer for examId: ${examId}, question number: ${no}`);
+  
+    // 1. Check Participant Answer
+    const participantAnswer = await this.participantAnswerRepository.findOne({
+      where: {
+        user: { id: currentUser.id },
+        exam: { id: examId },
+      },
+    });
+  
+    if (!participantAnswer) {
+      this.logger.error(`${executor} Access denied or the exam hasn't started for examId: ${examId}`);
+      throw new HttpException('Access denied or the exam hasn\'t started', HttpStatus.FORBIDDEN);
+    }
+  
+    this.logger.log(`${executor} Participant answer found, starting to update the answer.`);
+  
+    // 2. Retrieve listAnswers from participant's answer
+    let listAnswers = JSON.parse(participantAnswer.listAnswers);
+    let correctAnswers = JSON.parse(participantAnswer.listCorrectAnswer) || [];
+  
+    // 3. Search for the question number in listAnswers
+    const answerToUpdate = listAnswers.find(answer => answer.no === no);
+    
+    if (!answerToUpdate) {
+      this.logger.error(`${executor} Question number ${no} not found in examId: ${examId}`);
+      throw new HttpException(`Question number ${no} not found`, HttpStatus.NOT_FOUND);
+    }
+  
+    this.logger.log(`${executor} Question number ${no} found, updating the answer.`);
+  
+    // 4. Update the answer and answered status
+    answerToUpdate.ans = ans;
+    answerToUpdate.hst = hst;
+  
+    // 5. If the user is not unsure (hst = false), check the correctness of the answer
+    if (!hst) {
+      this.logger.log(`${executor} Checking the correctness of the answer for question ${no}.`);
+      
+      // Retrieve the answer key and check the correctness of the answer
+      const question = await this.questionRepository.findOne({
+        where: { exam: { id: examId }, questionNumber: no, statusData: true },
+      });
+  
+      if (!question) {
+        this.logger.error(`${executor} Question with number ${no} not found in examId: ${examId}`);
+        throw new HttpException(`Question with number ${no} not found`, HttpStatus.NOT_FOUND);
+      }
+  
+      const isCorrect = question.key === ans;
+  
+      if (isCorrect) {
+        this.logger.log(`${executor} The answer for question ${no} is correct.`);
+        // If correct, add to correctAnswers if it doesn't already exist
+        if (!correctAnswers.includes(no)) {
+          correctAnswers.push(no);
+        }
+      } else {
+        this.logger.log(`${executor} The answer for question ${no} is incorrect.`);
+        // If incorrect, remove it from correctAnswers if it exists
+        correctAnswers = correctAnswers.filter(answerNo => answerNo !== no);
+      }
+    } else {
+      this.logger.log(`${executor} The user is unsure about the answer for question ${no}, skipping correctness check.`);
+    }
+  
+    // 6. Save the changes
+    participantAnswer.listAnswers = JSON.stringify(listAnswers);
+    participantAnswer.listCorrectAnswer = JSON.stringify(correctAnswers);
+    await this.participantAnswerRepository.save(participantAnswer);
+  
+    const endTime = Date.now();
+    const executionTime = endTime - startTime;
+    this.logger.log(`${executor} Answer for question ${no} successfully updated for examId: ${examId}. Execution time: ${executionTime} ms`);
+    
+    // 7. Return success response
+    // this.logger.log(`${executor} Answer for question ${no} successfully updated for examId: ${examId}`);
+    
+    return {
+      message: 'Answer successfully updated',
+      data: participantAnswer,
+    };
+  }
+  
   
   private async validateStudentInExam(currentUser: Users, exam: Exam): Promise<boolean> {
     if (exam.participantType === ParticipantType.CLASS) {
