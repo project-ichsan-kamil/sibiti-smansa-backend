@@ -15,6 +15,7 @@ import { ExcelModule } from './excel/excel.module';
 import { ParticipantExamModule } from './participant-exam/participant-exam.module';
 import { QuestionModule } from './question/question.module';
 import { ParticipantAnswerModule } from './participant-answer/participant-answer.module';
+import { AbsentModule } from './absent/absent.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { ParticipantAnswerModule } from './participant-answer/participant-answer
     ParticipantExamModule,
     QuestionModule,
     ParticipantAnswerModule,
+    AbsentModule,
   ],
   controllers: [],
   providers: [EncryptionService],

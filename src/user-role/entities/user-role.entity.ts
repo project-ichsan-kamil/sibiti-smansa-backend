@@ -39,7 +39,7 @@ export class UserRole {
     updatedBy: string;
 
     @BeforeInsert()
-    generateProfileId() {
+    generateId() {
         this.id = new Date().valueOf();
     }
 }
