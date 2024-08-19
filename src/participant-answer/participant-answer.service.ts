@@ -165,8 +165,43 @@ export class ParticipantAnswerService {
     // 6. Return success response
     return participantAnswer;
   }
+
+  async completeExam(examId: number, currentUser: any) {
+    const executor = `[${currentUser.fullName}][completeExam]`;
+    const start = Date.now()
+    this.logger.log(`${executor} Starting the exam completion process for examId: ${examId}`);
   
+    // 1. Check if participant answer data exists for the user and exam
+    const participantAnswer = await this.participantAnswerRepository.findOne({
+      where: {
+        user: { id: currentUser.id },
+        exam: { id: examId },
+      },
+    });
   
+    if (!participantAnswer) {
+      this.logger.error(`${executor} Participant data not found for examId: ${examId}`);
+      throw new HttpException('Participant data not found', HttpStatus.NOT_FOUND);
+    }
+  
+    // 3. Calculate the score (correct answers / total questions * 100)
+    const listAnswers = JSON.parse(participantAnswer.listAnswers);
+    const totalQuestions = listAnswers.length;
+    const correctAnswers = JSON.parse(participantAnswer.listCorrectAnswer).length;
+    const score = (correctAnswers / totalQuestions) * 100;
+  
+    this.logger.log(`${executor} Calculated score: ${score}`);
+  
+    // 4. Update status to "complete"
+    participantAnswer.status = StatusAnswer.COMPLETED;
+    participantAnswer.score = score;
+    await this.participantAnswerRepository.save(participantAnswer);
+  
+    this.logger.log(`${executor} Exam marked as complete for examId: ${examId}, score: ${score}`);
+    
+    // 5. Return the result
+    return participantAnswer;
+  } 
   
   private async validateStudentInExam(currentUser: Users, exam: Exam): Promise<boolean> {
     if (exam.participantType === ParticipantType.CLASS) {
