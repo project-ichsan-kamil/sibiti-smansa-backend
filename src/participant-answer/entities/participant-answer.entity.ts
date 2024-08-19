@@ -37,14 +37,17 @@ export class ParticipantAnswer {
   @Column({ type: 'text' })
   listAnswers: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text' , default: null })
   listCorrectAnswer: string;
 
   @Column({ type: 'int', default: 0 })
   score: number;
 
-  @Column({ type: 'text' })
-  coordinates: string;
+  @Column({ type: 'text', default: null})
+  latitude: string;
+
+  @Column({ type: 'text', default: null})
+  longitude : string;
 
   @Column({ type: 'int', default: 0 })
   countCheating: number;

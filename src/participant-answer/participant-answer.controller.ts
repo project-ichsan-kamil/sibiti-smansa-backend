@@ -1,34 +1,28 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Post, Body, Req, UseGuards, ValidationPipe } from '@nestjs/common';
 import { ParticipantAnswerService } from './participant-answer.service';
 import { CreateParticipantAnswerDto } from './dto/create-participant-answer.dto';
-import { UpdateParticipantAnswerDto } from './dto/update-participant-answer.dto';
+import { JwtAuthGuard } from 'src/auth/jwt/jwt.auth.guard';
+import { RolesGuard } from 'src/auth/guard/roles.guard';
+import { Roles } from 'src/auth/decorator/roles.decorator';
+import { UserRoleEnum } from 'src/user-role/enum/user-role.enum';
 
-@Controller('participant-answer')
+@Controller('answer')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ParticipantAnswerController {
-  constructor(private readonly participantAnswerService: ParticipantAnswerService) {}
+  constructor(private readonly answerService: ParticipantAnswerService) {}
 
-  @Post()
-  create(@Body() createParticipantAnswerDto: CreateParticipantAnswerDto) {
-    return this.participantAnswerService.create(createParticipantAnswerDto);
-  }
-
-  @Get()
-  findAll() {
-    return this.participantAnswerService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.participantAnswerService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateParticipantAnswerDto: UpdateParticipantAnswerDto) {
-    return this.participantAnswerService.update(+id, updateParticipantAnswerDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.participantAnswerService.remove(+id);
+  @Post('create')
+  @Roles(UserRoleEnum.SISWA)
+  async createAnswer(
+    @Body(ValidationPipe) createAnswerDto: CreateParticipantAnswerDto,
+    @Req() req: any,
+  ) {
+    const currentUser = req.user;
+    const result = await this.answerService.createAnswer(createAnswerDto, currentUser);
+    return {
+      statusCode: 201,
+      message: 'Answer created successfully',
+      data: result,
+    };
   }
 }
