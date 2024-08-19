@@ -33,7 +33,12 @@ export class ParticipantAnswerController {
   @UsePipes(ValidationPipe)
   async updateAnswer(@Body() updatePartisipantAnswerDto: UpdateParticipantAnswerDto, @Req() req: any) {
     const currentUser = req.user; 
-    return await this.answerService.updateAnswer(updatePartisipantAnswerDto, currentUser);
+     const result = await this.answerService.updateAnswer(updatePartisipantAnswerDto, currentUser);
+     return {
+      statusCode: 200,
+      message: 'Answer updated successfully',
+      data: result,
+    };
   }
 
 }
