@@ -5,11 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { Absent } from './entities/absent.entity';
 import { CreateAbsentDto } from './dto/create-absent.dto';
-import { StatusAbsent } from './enum/absent.enum';
 import { Users } from 'src/users/entities/user.entity';
+import * as moment from 'moment-timezone';
 
 @Injectable()
 export class AbsentService {
@@ -21,28 +21,35 @@ export class AbsentService {
     private readonly userRepository: Repository<Users>,
   ) {}
 
+
   async create(createAbsentDto: CreateAbsentDto, currentUser: any): Promise<Absent> {
     const executor = `[${currentUser.fullName}][createAbsent]`;
     const start = Date.now();
-      
-    // Jalankan pencarian user dan existingAbsent secara paralel
-    const [user, existingAbsent] = await Promise.all([
-      this.userRepository.findOne({ where: { id: currentUser.id } }),
-      this.absentRepository.findOne({
-        where: {
-          user: { id: currentUser.id },
-          date: createAbsentDto.date,
-        },
-      }),
-    ]);
   
+    // Mendapatkan waktu saat ini dalam zona waktu Indonesia
+    const indonesiaTime = moment().tz('Asia/Jakarta');
+    const todayStart = indonesiaTime.clone().startOf('day').toDate();
+    const todayEnd = indonesiaTime.clone().endOf('day').toDate();
+  
+    // Cek jika user ada
+    const user = await this.userRepository.findOne({ where: { id: currentUser.id } });
     if (!user) throw new NotFoundException('User not found');
+  
+    // Cek jika absensi sudah ada untuk hari ini
+    const existingAbsent = await this.absentRepository.findOne({
+      where: {
+        user: { id: currentUser.id },
+        date: Between(todayStart, todayEnd),
+      },
+    });
     if (existingAbsent) throw new BadRequestException('You have already submitted your attendance for today.');
   
+    // Simpan absensi baru
     const savedAbsent = await this.absentRepository.save(
       this.absentRepository.create({
         ...createAbsentDto,
         user,
+        date: indonesiaTime.toDate(),
         createdBy: currentUser.fullName,
         updatedBy: currentUser.fullName,
       }),
@@ -51,6 +58,5 @@ export class AbsentService {
     this.logger.log(`${executor} Absence created successfully. Execution time: ${Date.now() - start} ms`);
     return savedAbsent;
   }
-  
   
 }

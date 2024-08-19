@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   BeforeInsert,
+  Index,
 } from 'typeorm';
 import { Users } from 'src/users/entities/user.entity';
 import { StatusAbsent } from '../enum/absent.enum';
@@ -18,11 +19,8 @@ export class Absent {
   @ManyToOne(() => Users, { nullable: false })
   user: Users;
 
-  @Column({ type: 'text' })
-  date: string;
-
-  @Column({ type: 'text' })
-  time: string;
+  @Column({ type: 'timestamp' })
+  date: Date;
 
   @Column({ type: 'text', nullable: true })
   latitude: string;
