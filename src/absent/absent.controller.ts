@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Req, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Req,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+  Query,
+} from '@nestjs/common';
 import { AbsentService } from './absent.service';
 import { CreateAbsentDto } from './dto/create-absent.dto';
 import { UpdateAbsentDto } from './dto/update-absent.dto';
@@ -16,8 +26,11 @@ export class AbsentController {
   @Roles(UserRoleEnum.ADMIN, UserRoleEnum.GURU, UserRoleEnum.SISWA)
   @UsePipes(ValidationPipe)
   async create(@Body() createAbsentDto: CreateAbsentDto, @Req() req: any) {
-    const currentUser = req.user;  // assuming JWT middleware adds user details
-    const result = await this.absentService.create(createAbsentDto, currentUser );
+    const currentUser = req.user; // assuming JWT middleware adds user details
+    const result = await this.absentService.create(
+      createAbsentDto,
+      currentUser,
+    );
     return {
       statusCode: 201,
       message: 'Absent record created successfully',
@@ -25,4 +38,16 @@ export class AbsentController {
     };
   }
 
+  @Get()
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
+  async getAbsents(@Query() filterDto: any, @Req() req: any) {
+    const currentUser = req.user;
+    const result = await this.absentService.getAbsents(filterDto, currentUser);
+    return {
+      statusCode: 200,
+      message: 'Absences retrieved successfully',
+      count: result.length,
+      data: result,
+    };
+  }
 }
