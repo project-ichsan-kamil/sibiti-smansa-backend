@@ -29,7 +29,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         log('Invalid Token:', info);
         throw new HttpException('Invalid token', 401);
       }
-      log(err, user, info, context);
       throw err || new UnauthorizedException();
     }
 
