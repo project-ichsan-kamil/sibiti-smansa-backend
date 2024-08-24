@@ -124,8 +124,8 @@ export class UserService {
       });
   
       if (!user) {
-        this.logger.warn(`${executor} User with ID ${verifyUserId} not found`);
-        continue; // Skip this user and continue with the next one
+        this.logger.error(`${executor} User with ID ${verifyUserId} not found`);
+        throw new HttpException(`User with ID ${verifyUserId} not found`, HttpStatus.NOT_FOUND);
       }
   
       user.updatedBy = currentUser.fullName;
@@ -155,7 +155,7 @@ export class UserService {
   
     this.logger.log(`${executor} Verification completed for users with IDs: ${verifyUserIds.join(', ')}`);
     return verifiedUsers;
-  }
+}
   
 
   async inActivateUsers(inActiveUserIds: number[], currentUser: any): Promise<any[]> {
@@ -424,7 +424,6 @@ export class UserService {
 
   private async checkIfSuperAdmin(currentUser: any): Promise<void> {
     const executor = `[${currentUser.fullName}][checkIfSuperAdmin]`;
-    this.logger.log(`${executor} Checking if current user is super admin`);
     const isSuperAdmin = await this.userRoleService.isSuperAdmin(currentUser.id);
     if (!isSuperAdmin) {
       this.logger.error(

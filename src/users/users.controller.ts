@@ -22,7 +22,6 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UserService } from './users.service';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt.auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { count } from 'console';
 
 @Controller('users')
 export class UsersController {
@@ -33,13 +32,10 @@ export class UsersController {
   @UsePipes(ValidationPipe)
   async createUser(@Body() createUserDto: CreateUserDto, @Req() req) {
     const currentUser = req.user;
-    const result = await this.userService.createUser(
-      createUserDto,
-      currentUser,
-    );
+    const result = await this.userService.createUser(createUserDto, currentUser);
     return {
       statusCode: 201,
-      message: 'User berhasil dibuat',
+      message: 'User created successfully',
       data: result,
     };
   }
@@ -59,8 +55,8 @@ export class UsersController {
       statusCode: 200,
       message:
         result.length > 0
-          ? 'User(s) berhasil diverifikasi'
-          : 'Tidak ada pengguna yang diverifikasi',
+          ? 'User(s) successfully verified'
+          : 'No users were verified',
       count: result.length,
       verifiedUsers: result,
     };
@@ -81,9 +77,9 @@ export class UsersController {
       statusCode: 200,
       message:
         result.length > 0
-          ? 'User(s) berhasil dinonaktifkan'
-          : 'Tidak ada pengguna yang dinonaktifkan',
-      count : result.length,
+          ? 'User(s) successfully deactivated'
+          : 'No users were deactivated',
+      count: result.length,
       data: result,
     };
   }
@@ -95,7 +91,7 @@ export class UsersController {
     const result = await this.userService.getUserByUserId(userId, currentUser);
     return {
       statusCode: 200,
-      message: 'User berhasil di temukan',
+      message: 'User found successfully',
       data: result,
     };
   }
@@ -107,7 +103,7 @@ export class UsersController {
     const result = await this.userService.getUnverifiedUsers(currentUser);
     return {
       statusCode: 200,
-      message: 'User berhasil ditemukan',
+      message: 'Unverified users found successfully',
       count: result.length,
       data: result,
     };
@@ -120,7 +116,7 @@ export class UsersController {
     const result = await this.userService.getVerifiedUsers(currentUser);
     return {
       statusCode: 200,
-      message: 'User berhasil ditemukan',
+      message: 'Verified users found successfully',
       count: result.length,
       data: result,
     };
@@ -133,7 +129,7 @@ export class UsersController {
     const result = await this.userService.deleteUser(userId, currentUser);
     return {
       statusCode: 200,
-      message: 'User berhasil dihapus',
+      message: 'User deleted successfully',
       data: result,
     };
   }
@@ -142,13 +138,10 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   async searchUserByFullName(@Query('fullName') fullName: string, @Req() req) {
     const currentUser = req.user;
-    const result = await this.userService.searchUserByFullName(
-      fullName,
-      currentUser,
-    );
+    const result = await this.userService.searchUserByFullName(fullName, currentUser);
     return {
       statusCode: 200,
-      message: 'User berhasil ditemukan',
+      message: 'User(s) found successfully',
       count: result.length,
       data: result,
     };
@@ -163,10 +156,7 @@ export class UsersController {
       throw new HttpException('No file provided', HttpStatus.BAD_REQUEST);
     }
 
-    const result = await this.userService.createUserFormTemplateExcel(
-      file,
-      currentUser,
-    );
+    const result = await this.userService.createUserFormTemplateExcel(file, currentUser);
     return result;
   }
 }
