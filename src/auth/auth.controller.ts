@@ -9,6 +9,7 @@ import {
   Get,
   UseGuards,
   Req,
+  Logger,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -17,6 +18,8 @@ import { JwtAuthGuard } from './jwt/jwt.auth.guard';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+  
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
@@ -47,9 +50,13 @@ export class AuthController {
 
   @Post('logout')
   @UseGuards(JwtAuthGuard) // Pastikan pengguna terautentikasi
-  async logout(@Res() res: Response) {
+  async logout(@Res() res: Response,  @Req() req) {
+    const currentUser = req.user;
+
     // Menghapus token dari cookies
     res.clearCookie('token'); // Hapus token cookie
+
+    this.logger.log(`[logout] Logout successful for user : '${currentUser?.fullName}'`);
     return res
       .status(HttpStatus.OK)
       .send({ statusCode: 200, message: 'Logout successful' });
