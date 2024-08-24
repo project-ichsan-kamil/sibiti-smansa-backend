@@ -310,36 +310,46 @@ export class UserService {
     return user;
   }
 
-  async searchUserByFullName(fullName: string, currentUser: any): Promise<any> {
+  async searchUserByFullName(
+    fullName: string,
+    isVerified: boolean,
+    currentUser: any,
+  ): Promise<any> {
     const executor = `[${currentUser.fullName}][searchUserByFullName]`;
-    this.logger.log(`${executor} Searching users with full name: ${fullName}`);
-
+    this.logger.log(
+      `${executor} Searching users with full name: ${fullName} and isVerified: ${isVerified}`,
+    );
+  
+    // Ensure the current user is a Super Admin before proceeding
     await this.checkIfSuperAdmin(currentUser);
-
+  
     const users = await this.usersRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.profile', 'profile')
       .where('profile.fullName LIKE :fullName', { fullName: `%${fullName}%` })
       .andWhere('user.statusData = :statusData', { statusData: true })
+      .andWhere('user.isVerified = :isVerified', { isVerified }) // Add the filter for isVerified
       .select([
         'user.id',
         'user.email',
+        'user.isVerified',
         'profile.encrypt',
         'profile.fullName',
         'profile.noHp',
       ])
       .getMany();
-
+  
+    // Decrypt the 'encrypt' field in each user's profile
     users.forEach((user) => {
       if (user.profile && user.profile.encrypt) {
-        const decryptedData = this.encryptionService.decrypt(
-          user.profile.encrypt,
-        );
+        const decryptedData = this.encryptionService.decrypt(user.profile.encrypt);
         user.profile.encrypt = decryptedData;
       }
     });
-
-    this.logger.log(`${executor} Found ${users.length} users with full name "${fullName}"`);
+  
+    this.logger.log(
+      `${executor} Found ${users.length} users with full name "${fullName}" and isVerified: ${isVerified}`,
+    );
     return users;
   }
 

@@ -22,13 +22,16 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UserService } from './users.service';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt.auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { RolesGuard } from 'src/auth/guard/roles.guard';
+import { Roles } from 'src/auth/decorator/roles.decorator';
+import { UserRoleEnum } from 'src/user-role/enum/user-role.enum';
 
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly userService: UserService) {}
 
   @Post('create')
-  @UseGuards(JwtAuthGuard)
   @UsePipes(ValidationPipe)
   async createUser(@Body() createUserDto: CreateUserDto, @Req() req) {
     const currentUser = req.user;
@@ -41,8 +44,8 @@ export class UsersController {
   }
 
   @Post('verify')
-  @UseGuards(JwtAuthGuard)
   @UsePipes(ValidationPipe)
+  @Roles(UserRoleEnum.SUPER_ADMIN)
   async verifyUsers(
     @Query('userIds', new ParseArrayPipe({ items: Number, separator: ',' }))
     userIds: number[],
@@ -63,7 +66,6 @@ export class UsersController {
   }
 
   @Post('unverify')
-  @UseGuards(JwtAuthGuard)
   @UsePipes(ValidationPipe)
   async unverifyUsers(
     @Query('userIds', new ParseArrayPipe({ items: Number, separator: ',' }))
@@ -85,7 +87,6 @@ export class UsersController {
   }
 
   @Get('get-user')
-  @UseGuards(JwtAuthGuard)
   async getUserByUserId(@Query('userId') userId: number, @Req() req) {
     const currentUser = req.user;
     const result = await this.userService.getUserByUserId(userId, currentUser);
@@ -97,7 +98,7 @@ export class UsersController {
   }
 
   @Get('user-unverified')
-  @UseGuards(JwtAuthGuard)
+  @Roles(UserRoleEnum.SUPER_ADMIN)
   async getUnverifiedUsers(@Req() req) {
     const currentUser = req.user;
     const result = await this.userService.getUnverifiedUsers(currentUser);
@@ -110,7 +111,6 @@ export class UsersController {
   }
 
   @Get('user-verified')
-  @UseGuards(JwtAuthGuard)
   async getVerifiedUsers(@Req() req) {
     const currentUser = req.user;
     const result = await this.userService.getVerifiedUsers(currentUser);
@@ -123,22 +123,22 @@ export class UsersController {
   }
 
   @Delete('delete')
-  @UseGuards(JwtAuthGuard)
+  @Roles(UserRoleEnum.SUPER_ADMIN)
   async deleteUser(@Query('userId', ParseIntPipe) userId: number, @Req() req) {
     const currentUser = req.user;
     const result = await this.userService.deleteUser(userId, currentUser);
     return {
       statusCode: 200,
-      message: 'User deleted successfully',
+      message: 'The user has been successfully deleted.',
       data: result,
     };
   }
 
   @Get('search')
-  @UseGuards(JwtAuthGuard)
-  async searchUserByFullName(@Query('fullName') fullName: string, @Req() req) {
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN)
+  async searchUserByFullName(@Query('fullName') fullName: string, @Query('isVerified') isVerified: boolean, @Req() req) {
     const currentUser = req.user;
-    const result = await this.userService.searchUserByFullName(fullName, currentUser);
+    const result = await this.userService.searchUserByFullName(fullName, isVerified, currentUser);
     return {
       statusCode: 200,
       message: 'User(s) found successfully',
@@ -148,7 +148,6 @@ export class UsersController {
   }
 
   @Post('upload-excel')
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file'))
   async uploadExcel(@UploadedFile() file: Multer.File, @Req() req) {
     const currentUser = req.user;
