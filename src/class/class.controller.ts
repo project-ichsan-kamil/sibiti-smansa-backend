@@ -1,12 +1,17 @@
-import { Controller, Get, Param, Query, } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards, } from '@nestjs/common';
 import { ClassService } from './class.service';
-
+import { JwtAuthGuard } from 'src/auth/jwt/jwt.auth.guard';
+import { RolesGuard } from 'src/auth/guard/roles.guard';
+import { UserRoleEnum } from 'src/user-role/enum/user-role.enum';
+import { Roles } from 'src/auth/decorator/roles.decorator';
 
 @Controller('classes')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ClassController {
     constructor(private readonly classService: ClassService) {}
 
     @Get()
+    @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
     async findAll() {
         const result = await this.classService.findAll();
         return {
@@ -18,6 +23,7 @@ export class ClassController {
     }
 
     @Get('search')
+    @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
     async searchByName(@Query('nama') nama: string) {
         const result = await this.classService.searchByName(nama);
         return {
@@ -29,6 +35,7 @@ export class ClassController {
     }
 
     @Get(':id')
+    @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
     async findOne(@Param('id') id: number) {
         const result = await this.classService.findOne(id);
         return {
@@ -37,35 +44,4 @@ export class ClassController {
           data : result
         }
     }
-
-    // @Post()
-    // @UsePipes(new ValidationPipe({ transform: true }))
-    // async create(@Body() createClassDto: CreateClassDto) {
-    //     const result = await this.classService.create(createClassDto);
-    //     return {
-    //       statusCode : 200,
-    //       message : "Data berhasil disimpan",
-    //       data : result
-    //     }
-    // }
-
-    // @Patch(':id')
-    // async update(@Param('id') id: number, @Body() updateClassDto: UpdateClassDto) {
-    //     const result = await this.classService.update(id, updateClassDto);
-    //     return {
-    //         statusCode: 200,
-    //         message: "Data berhasil diperbarui",
-    //         data: result
-    //     };
-    // }
-
-    // @Delete(':id')
-    // async remove(@Param('id') id: number) {
-    //     const result = await this.classService.remove(id);
-    //     return {
-    //       statusCode: 200,
-    //       message: "Data berhasil dihapus",
-    //       data: result
-    //     };
-    // }
 }

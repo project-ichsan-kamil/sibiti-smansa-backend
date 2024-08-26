@@ -33,6 +33,7 @@ export class UsersController {
 
   @Post('create')
   @UsePipes(ValidationPipe)
+  @Roles(UserRoleEnum.SUPER_ADMIN)
   async createUser(@Body() createUserDto: CreateUserDto, @Req() req) {
     const currentUser = req.user;
     const result = await this.userService.createUser(createUserDto, currentUser);
