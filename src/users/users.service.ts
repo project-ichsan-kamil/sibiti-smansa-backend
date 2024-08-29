@@ -190,40 +190,51 @@ export class UserService {
     return inactivatedUsers;
   }
   
-
   async getUnverifiedUsers(currentUser: any): Promise<any[]> {
     const executor = `[${currentUser.fullName}][getUnverifiedUsers]`;
     this.logger.log(`${executor} Retrieving unverified users`);
-  
+
     await this.checkIfSuperAdmin(currentUser);
-  
-    const unverifiedUsers = await this.usersRepository
-      .createQueryBuilder('user')
-      .leftJoinAndSelect('user.profile', 'profile')
-      .where('user.isVerified = :isVerified', { isVerified: false })
-      .andWhere('user.statusData = :statusData', { statusData: true })
-      .select([
-        'user.id',
-        'user.email',
-        'profile.encrypt',
-        'profile.fullName',
-        'profile.noHp',
-      ])
-      .orderBy('GREATEST(user.updatedAt, profile.updatedAt)', 'DESC')
-      .getMany();
-  
-    unverifiedUsers.forEach((user) => {
-      if (user.profile && user.profile.encrypt) {
-        const decryptedData = this.encryptionService.decrypt(
-          user.profile.encrypt,
-        );
-        user.profile.encrypt = decryptedData;
-      }
+
+    const unverifiedUsersRaw = await this.usersRepository
+        .createQueryBuilder('user')
+        .leftJoinAndSelect('user.profile', 'profile')
+        .leftJoinAndSelect('user.userClasses', 'userClass')
+        .leftJoinAndSelect('userClass.classEntity', 'classEntity')
+        .where('user.isVerified = :isVerified', { isVerified: false })
+        .andWhere('user.statusData = :statusData', { statusData: true })
+        .select([
+            'user.id as id',
+            'user.email as email',
+            'profile.encrypt as encrypt',
+            'profile.fullName as fullName',
+            'profile.noHp as noHp',
+            'classEntity.name as className',
+        ])
+        .orderBy('GREATEST(user.updatedAt, profile.updatedAt)', 'DESC')
+        .getRawMany();
+
+    const unverifiedUsers = unverifiedUsersRaw.map(user => {
+        if (user.encrypt) {
+            const decryptedData = this.encryptionService.decrypt(user.encrypt);
+            user.encrypt = decryptedData;
+        }
+
+        return {
+            id: user.id,
+            email: user.email,
+            profile: {
+                fullName: user.fullName,
+                noHp: user.noHp
+            },
+            class: user.className ? { name: user.className } : null
+        };
     });
-  
+
     this.logger.log(`${executor} Retrieved ${unverifiedUsers.length} unverified users`);
     return unverifiedUsers;
-  }
+}
+
   
   async getVerifiedUsers(currentUser: any): Promise<any[]> {
     const executor = `[${currentUser.fullName}][getVerifiedUsers]`;

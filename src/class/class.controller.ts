@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards, } from '@nestjs/common';
+import { Controller, Get, Param, Query, Req, UseGuards, } from '@nestjs/common';
 import { ClassService } from './class.service';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt.auth.guard';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
@@ -12,8 +12,9 @@ export class ClassController {
 
     @Get()
     @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
-    async findAll() {
-        const result = await this.classService.findAll();
+    async findAll(@Req() req: any) {
+        const currentUser = req.user;
+        const result = await this.classService.findAll(currentUser);
         return {
           statusCode : 200,
           message : "Data berhasil ditemukan",
@@ -24,8 +25,9 @@ export class ClassController {
 
     @Get('search')
     @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
-    async searchByName(@Query('nama') nama: string) {
-        const result = await this.classService.searchByName(nama);
+    async searchByName(@Query('nama') nama: string, @Req() req : any) {
+        const currentUser = req.user;
+        const result = await this.classService.searchByName(nama, currentUser);
         return {
           statusCode: 200,
           message: "Data berhasil ditemukan",
@@ -36,8 +38,9 @@ export class ClassController {
 
     @Get(':id')
     @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
-    async findOne(@Param('id') id: number) {
-        const result = await this.classService.findOne(id);
+    async findOne(@Param('id') id: number, @Req() req: any) {
+        const currentUser = req.user;
+        const result = await this.classService.findOne(id, currentUser);
         return {
           statusCode : 200,
           message : "Data berhasil ditemukan",

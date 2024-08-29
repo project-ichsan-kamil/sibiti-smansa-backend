@@ -68,6 +68,7 @@ export class UsersController {
 
   @Post('unverify')
   @UsePipes(ValidationPipe)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN)
   async unverifyUsers(
     @Query('userIds', new ParseArrayPipe({ items: Number, separator: ',' }))
     userIds: number[],
@@ -88,6 +89,7 @@ export class UsersController {
   }
 
   @Get('get-user')
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN)
   async getUserByUserId(@Query('userId') userId: number, @Req() req) {
     const currentUser = req.user;
     const result = await this.userService.getUserByUserId(userId, currentUser);
@@ -112,6 +114,7 @@ export class UsersController {
   }
 
   @Get('user-verified')
+  @Roles(UserRoleEnum.SUPER_ADMIN)
   async getVerifiedUsers(@Req() req) {
     const currentUser = req.user;
     const result = await this.userService.getVerifiedUsers(currentUser);
