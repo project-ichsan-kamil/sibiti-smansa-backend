@@ -36,7 +36,10 @@ export class UsersController {
   @Roles(UserRoleEnum.SUPER_ADMIN)
   async createUser(@Body() createUserDto: CreateUserDto, @Req() req) {
     const currentUser = req.user;
-    const result = await this.userService.createUser(createUserDto, currentUser);
+    const result = await this.userService.createUser(
+      createUserDto,
+      currentUser,
+    );
     return {
       statusCode: 201,
       message: 'User created successfully',
@@ -140,9 +143,17 @@ export class UsersController {
 
   @Get('search')
   @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN)
-  async searchUserByFullName(@Query('fullName') fullName: string, @Query('isVerified') isVerified: boolean, @Req() req) {
+  async searchUserByFullName(
+    @Query('fullName') fullName: string,
+    @Query('isVerified') isVerified: boolean,
+    @Req() req,
+  ) {
     const currentUser = req.user;
-    const result = await this.userService.searchUserByFullName(fullName, isVerified, currentUser);
+    const result = await this.userService.searchUserByFullName(
+      fullName,
+      isVerified,
+      currentUser,
+    );
     return {
       statusCode: 200,
       message: 'User(s) found successfully',
@@ -159,7 +170,24 @@ export class UsersController {
       throw new HttpException('No file provided', HttpStatus.BAD_REQUEST);
     }
 
-    const result = await this.userService.createUserFormTemplateExcel(file, currentUser);
+    const result = await this.userService.createUserFormTemplateExcel(
+      file,
+      currentUser,
+    );
     return result;
+  }
+
+  @Get('unassigned-verified-users')
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN)
+  async getUnassignedVerifiedUsers(@Req() req) {
+    const currentUser = req.user;
+    const result =
+      await this.userService.getUnassignedVerifiedUsers(currentUser);
+    return {
+      statusCode: 200,
+      message: 'Verified users not assigned to any class found successfully',
+      count: result.length,
+      data: result,
+    };
   }
 }

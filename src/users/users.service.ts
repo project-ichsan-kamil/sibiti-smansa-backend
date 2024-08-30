@@ -235,8 +235,7 @@ export class UserService {
     this.logger.log(`${executor} Retrieved ${unverifiedUsers.length} unverified users`);
     return unverifiedUsers;
 }
-
-  
+ 
   async getVerifiedUsers(currentUser: any): Promise<any[]> {
     const executor = `[${currentUser.fullName}] [getVerifiedUsers]`;
     this.logger.log(`${executor} Retrieving verified users`);
@@ -442,6 +441,34 @@ export class UserService {
   
     this.logger.log(`${executor} Excel file processed successfully`);
     return { message: 'Excel file processed successfully' };
+  }
+
+  async getUnassignedVerifiedUsers(currentUser: any): Promise<any[]> {
+    const executor = `[${currentUser.fullName}] [getUnassignedVerifiedUsers]`;
+    this.logger.log(`${executor} Fetching verified users not assigned to any class`);
+  
+    const users = await this.usersRepository.createQueryBuilder('user')
+      .leftJoinAndSelect('user.userClasses', 'userClass')
+      .leftJoinAndSelect('user.profile', 'profile') // Join with profile to access fullname
+      .where('user.isVerified = :isVerified', { isVerified: true })
+      .andWhere('user.statusData = :statusData', { statusData: true })
+      .andWhere('userClass.id IS NULL')
+      .getMany();
+  
+    // Filter out the user with the email 'fajrulichsan0208@gmail.com'
+    const filteredUsers = users
+      .filter(user => user.email !== 'fajrulichsan0208@gmail.com')
+      .map(user => ({
+        id: user.id,
+        fullName: user.profile.fullName, // Only return id and profile.fullName
+      }));
+  
+    if (!filteredUsers.length) {
+      this.logger.warn(`${executor} No verified users without class assignment found`);
+    }
+  
+    this.logger.log(`${executor} ${filteredUsers.length} verified users without class assignment found`);
+    return filteredUsers;
   }
 
   private async checkIfSuperAdmin(currentUser: any): Promise<void> {

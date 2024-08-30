@@ -114,55 +114,64 @@ export class UserRoleService {
   }
 
   async getListAdmin(currentUser: any): Promise<UserRole[]> {
-    const executor = `[${currentUser.fullName}][getListAdmin]`;
-    this.logger.log(`${executor} Fetching list of Admins`); 
+    const executor = `[${currentUser.fullName}] [getListAdmin]`;
+    this.logger.log(`${executor} Fetching list of Admins`);
   
-    // Cari semua pengguna dengan peran Admin
+    // Find all users with the Admin role
     const admins = await this.userRoleRepository.find({
       where: {
         role: UserRoleEnum.ADMIN,
         statusData: true,
         user: {
-          statusData: true, // Pengguna harus aktif
-          isVerified: true, // Pengguna harus diverifikasi
+          statusData: true, // User must be active
+          isVerified: true, // User must be verified
         },
       },
-      relations: ['user'], // Termasuk informasi pengguna terkait
+      relations: ['user'], // Include related user information
     });
   
     if (!admins.length) {
       this.logger.warn(`${executor} No Admins found`);
-      throw new HttpException('Tidak ada user role Admin yang ditemukan', HttpStatus.NOT_FOUND);
+      throw new HttpException('No Admin user roles found', HttpStatus.NOT_FOUND);
     }
   
     this.logger.log(`${executor} ${admins.length} Admins found`);
     return admins;
   }
-
-  async getListGuru(currentUser: any): Promise<any[]> {
-    const executor = `[${currentUser.fullName}][getListGuru]`;
+  
+  async getListGuru(currentUser: any, name?: string): Promise<any[]> {
+    const executor = `[${currentUser.fullName}] [getListGuru]`;
     this.logger.log(`${executor} Fetching list of Gurus`);
-
-    // Mencari semua pengguna dengan peran Guru yang aktif dan terverifikasi
-    const gurus = await this.userRoleRepository.find({
-      where: {
-        role: UserRoleEnum.GURU,
-        statusData: true, // Hanya yang aktif
-        user: {
-          statusData: true, // Pengguna harus aktif
-          isVerified: true, // Pengguna harus diverifikasi
-        },
-      },
-      relations: ['user'], // Termasuk informasi pengguna terkait
-    });
-
+  
+    const query = this.userRoleRepository.createQueryBuilder('userRole')
+      .leftJoinAndSelect('userRole.user', 'user')
+      .leftJoinAndSelect('user.profile', 'profile')
+      .leftJoinAndSelect('userRole.subject', 'subject')
+      .where('userRole.role = :role', { role: UserRoleEnum.GURU })
+      .andWhere('userRole.statusData = :statusData', { statusData: true })
+      .andWhere('user.statusData = :statusData', { statusData: true })
+      .andWhere('user.isVerified = :isVerified', { isVerified: true });
+  
+    // Add name filter if provided
+    if (name) {
+      query.andWhere('profile.fullName LIKE :name', { name: `%${name}%` });
+    }
+  
+    const gurus = await query.getMany();
+  
     if (!gurus.length) {
       this.logger.warn(`${executor} No Gurus found`);
     }
-
+  
     this.logger.log(`${executor} ${gurus.length} Gurus found`);
-    return gurus;
+    return gurus.map(guru => ({
+      id: guru.id,
+      fullName: guru.user.profile.fullName,
+      email: guru.user.email,
+      subject: guru.subject ? guru.subject.name : null,
+    }));
   }
+  
 
   async getListUserByFullNameAndRole(fullName: string, role: UserRoleEnum, currentUser: any): Promise<any[]> {
     const executor = `[${currentUser.fullName}][getListUserByFullNameAndRole]`;
@@ -235,7 +244,7 @@ export class UserRoleService {
   }
 
   async getRoleById(roleId: number, currentUser: any): Promise<UserRole> {
-    const executor = `[${currentUser.fullName}][getRoleById]`;
+    const executor = `[${currentUser.fullName}] [getRoleById]`;
     this.logger.log(`${executor} Fetching role with ID: ${roleId}`);
 
     // Fetch the role by ID
@@ -255,7 +264,7 @@ export class UserRoleService {
 
 
   async updateGuruSubject(roleId: number, newSubjectId: number, currentUser: any): Promise<UserRole> {
-    const executor = `[${currentUser.fullName}][updateGuruSubject]`;
+    const executor = `[${currentUser.fullName}] [updateGuruSubject]`;
     this.logger.log(`${executor} Attempting to update subject for Guru role with ID: ${roleId}`);
 
     // Fetch the role to be updated
@@ -294,7 +303,7 @@ export class UserRoleService {
     subjectId: number,
     currentUser: any,
   ): Promise<UserRole> {
-    const executor = `[${currentUser.fullName}][updateRoleGuru]`;
+    const executor = `[${currentUser.fullName}] [updateRoleGuru]`;
     this.logger.log(`${executor} Starting update for Guru role subject`);
 
     // Check if the currentUser is either Super Admin or Admin

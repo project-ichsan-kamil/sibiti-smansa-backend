@@ -39,7 +39,7 @@ export class UserRoleController {
     );
     return {
       statusCode: 201,
-      message: 'Role created successfully',
+      message: 'Role berhasil dibuat.',
       data: newRole,
     };
   }
@@ -51,7 +51,7 @@ export class UserRoleController {
     const role = await this.userRoleService.getRoleById(roleId, currentUser);
     return {
       statusCode: 200,
-      message: `Role with ID: ${roleId} fetched successfully`,
+      message: 'Role berhasil ditemukan.',
       data: role,
     };
   }
@@ -63,7 +63,7 @@ export class UserRoleController {
     const admins = await this.userRoleService.getListAdmin(currentUser);
     return {
       statusCode: 200,
-      message: 'Admins retrieved successfully',
+      message: 'Daftar Admin berhasil ditemukan.',
       count: admins.length,
       data: admins,
     };
@@ -71,12 +71,12 @@ export class UserRoleController {
 
   @Get('list-guru')
   @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN)
-  async getListGuru(@Req() req: any) {
+  async getListGuru(@Req() req: any, @Query('name') name?: string) {
     const currentUser = req.user;
-    const gurus = await this.userRoleService.getListGuru(currentUser);
+    const gurus = await this.userRoleService.getListGuru(currentUser, name);
     return {
       statusCode: 200,
-      message: 'Daftar Guru berhasil diambil',
+      message: 'Daftar Guru berhasil ditemukan.',
       count: gurus.length,
       data: gurus,
     };
@@ -96,7 +96,7 @@ export class UserRoleController {
     );
     return {
       statusCode: 200,
-      message: `Daftar pengguna dengan peran ${role} berhasil diambil`,
+      message: `Daftar pengguna dengan role berhasil ditemukan.`,
       count: users.length,
       data: users,
     };
@@ -109,7 +109,7 @@ export class UserRoleController {
     await this.userRoleService.deactivateGuruRole(roleId, currentUser);
     return {
       statusCode: 200,
-      message: `Guru role with ID: ${roleId} deactivated successfully`,
+      message: 'Role Guru berhasil dihapus.',
     };
   }
 
@@ -120,7 +120,7 @@ export class UserRoleController {
     await this.userRoleService.deactivateAdminRole(roleId, currentUser);
     return {
       statusCode: 200,
-      message: `Admin role with ID: ${roleId} deactivated successfully`,
+      message: 'Role Admin berhasil dihapus.',
     };
   }
 
@@ -140,7 +140,7 @@ export class UserRoleController {
     );
     return {
       statusCode: 200,
-      message: `Subject for Guru role with ID: ${roleId} updated successfully`,
+      message: 'Mata pelajaran untuk role Guru berhasil diperbarui.',
       data: updatedRole,
     };
   }

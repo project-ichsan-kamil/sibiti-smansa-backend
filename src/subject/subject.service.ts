@@ -12,8 +12,7 @@ export class SubjectService {
   ) {}
 
   async findAll(currentUser: any): Promise<Partial<Subject>[]> {
-    const executor = `[${currentUser.fullName}][findAll]`;
-    this.logger.log(`${executor} Fetching all active subjects`);
+    const executor = `[${currentUser.fullName}] [findAll]`;
 
     const subjects = await this.subjectRepository.find({ where: { statusData: true } });
 
