@@ -32,7 +32,7 @@ export class UserService {
     createUserDto: CreateUserDto,
     currentUser: any,
   ): Promise<any> {
-    const executor = `[${currentUser.fullName}][createUser]`;
+    const executor = `[${currentUser.fullName}] [createUser]`;
     this.logger.log(`${executor} Initiating user creation process`);
     
     try {
@@ -108,7 +108,7 @@ export class UserService {
   }
 
   async verifyUsers(verifyUserIds: number[], currentUser: any): Promise<any[]> {
-    const executor = `[${currentUser.fullName}][verifyUsers]`;
+    const executor = `[${currentUser.fullName}] [verifyUsers]`;
     this.logger.log(`${executor} Verifying users with IDs: ${verifyUserIds.join(', ')}`);
   
     // Memeriksa apakah pengguna saat ini adalah super admin menggunakan fungsi checkIfSuperAdmin
@@ -159,7 +159,7 @@ export class UserService {
   
 
   async inActivateUsers(inActiveUserIds: number[], currentUser: any): Promise<any[]> {
-    const executor = `[${currentUser.fullName}][inActivateUsers]`;
+    const executor = `[${currentUser.fullName}] [inActivateUsers]`;
     this.logger.log(`${executor} Starting process to inactivate users with IDs: ${inActiveUserIds.join(', ')}`);
   
     // Memeriksa apakah pengguna saat ini adalah super admin menggunakan fungsi checkIfSuperAdmin
@@ -191,7 +191,7 @@ export class UserService {
   }
   
   async getUnverifiedUsers(currentUser: any): Promise<any[]> {
-    const executor = `[${currentUser.fullName}][getUnverifiedUsers]`;
+    const executor = `[${currentUser.fullName}] [getUnverifiedUsers]`;
     this.logger.log(`${executor} Retrieving unverified users`);
 
     await this.checkIfSuperAdmin(currentUser);
@@ -225,7 +225,8 @@ export class UserService {
             email: user.email,
             profile: {
                 fullName: user.fullName,
-                noHp: user.noHp
+                noHp: user.noHp,
+                encrypt: user.encrypt
             },
             class: user.className ? { name: user.className } : null
         };
@@ -237,7 +238,7 @@ export class UserService {
 
   
   async getVerifiedUsers(currentUser: any): Promise<any[]> {
-    const executor = `[${currentUser.fullName}][getVerifiedUsers]`;
+    const executor = `[${currentUser.fullName}] [getVerifiedUsers]`;
     this.logger.log(`${executor} Retrieving verified users`);
   
     await this.checkIfSuperAdmin(currentUser);
@@ -265,7 +266,7 @@ export class UserService {
   }
 
   async getUserByUserId(userId: number, currentUser: any): Promise<any> {
-    const executor = `[${currentUser.fullName}][getUserByUserId]`;
+    const executor = `[${currentUser.fullName}] [getUserByUserId]`;
     this.logger.log(`${executor} Retrieving user with ID ${userId}`);
 
     await this.checkIfSuperAdmin(currentUser);
@@ -300,7 +301,7 @@ export class UserService {
   }
 
   async deleteUser(userId: number, currentUser: any): Promise<any> {
-    const executor = `[${currentUser.fullName}][deleteUser]`;
+    const executor = `[${currentUser.fullName}] [deleteUser]`;
     this.logger.log(`${executor} Deleting user with ID ${userId}`);
 
     await this.checkIfSuperAdmin(currentUser);
@@ -326,7 +327,7 @@ export class UserService {
     isVerified: boolean,
     currentUser: any,
   ): Promise<any> {
-    const executor = `[${currentUser.fullName}][searchUserByFullName]`;
+    const executor = `[${currentUser.fullName}] [searchUserByFullName]`;
     this.logger.log(
       `${executor} Searching users with full name: ${fullName} and isVerified: ${isVerified}`,
     );
@@ -365,7 +366,7 @@ export class UserService {
   }
 
   async createUserFormTemplateExcel(file: Multer.File, currentUser: any): Promise<any> {
-    const executor = `[${currentUser.fullName}][createUserFormTemplateExcel]`;
+    const executor = `[${currentUser.fullName}] [createUserFormTemplateExcel]`;
     this.logger.log(`${executor} Starting Excel file processing`);
   
     await this.checkIfSuperAdmin(currentUser);
@@ -444,7 +445,7 @@ export class UserService {
   }
 
   private async checkIfSuperAdmin(currentUser: any): Promise<void> {
-    const executor = `[${currentUser.fullName}][checkIfSuperAdmin]`;
+    const executor = `[${currentUser.fullName}] [checkIfSuperAdmin]`;
     const isSuperAdmin = await this.userRoleService.isSuperAdmin(currentUser.id);
     if (!isSuperAdmin) {
       this.logger.error(

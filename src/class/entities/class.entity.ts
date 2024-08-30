@@ -22,9 +22,6 @@ export class Class {
   @Column()
   class: number;
 
-  @Column()
-  status: number;
-
   @Column({ default: true })
   statusData: boolean;
 

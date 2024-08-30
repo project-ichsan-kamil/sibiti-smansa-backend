@@ -13,13 +13,13 @@ export class ClassService {
     ) {}
 
     async findAll(currentUser: any): Promise<Class[]> {
-        const executor = `[${currentUser.fullName}][findAll]`;
+        const executor = `[${currentUser.fullName}] [findAll]`;
         this.logger.log(`${executor} Fetching all classes with statusData true`);
         return this.classRepository.find({ where: { statusData: true }, order: { name: 'ASC' } });
     }
 
     async findOne(id: number, currentUser: any): Promise<Class> {
-        const executor = `[${currentUser.fullName}][findOne]`;
+        const executor = `[${currentUser.fullName}] [findOne]`;
         this.logger.log(`${executor} Fetching class with id ${id}`);
         const classEntity = await this.classRepository.findOne({ where: { id, statusData: true } });
         if (!classEntity) {
@@ -30,7 +30,7 @@ export class ClassService {
     }
 
     async searchByName(nama: string, currentUser: any): Promise<Class[]> {
-        const executor = `[${currentUser.fullName}][searchByName]`;
+        const executor = `[${currentUser.fullName}] [searchByName]`;
         this.logger.log(`${executor} Searching classes with name containing ${nama}`);
         const lowerCaseNama = nama.trim().replace(/\s+/g, ' ').toLowerCase();
         return this.classRepository.find({ 
