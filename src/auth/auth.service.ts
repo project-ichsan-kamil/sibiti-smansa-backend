@@ -50,9 +50,11 @@ export class AuthService {
     }
 
     // Ambil role, jika tidak ada set default ke SISWA
-    const roles =
+    const activeRoles =
       user.userRoles.length > 0
-        ? user.userRoles.map((role) => role.role)
+        ? user.userRoles
+            .filter((role) => role.statusData === true) // Memfilter role yang aktif
+            .map((role) => role.role)
         : [UserRoleEnum.SISWA];
 
     // Buat payload untuk JWT token
@@ -60,7 +62,7 @@ export class AuthService {
       id: user.id,
       email: user.email,
       fullName: user.profile?.fullName,
-      roles: roles,
+      roles: activeRoles,
     };
 
     // Generate token JWT

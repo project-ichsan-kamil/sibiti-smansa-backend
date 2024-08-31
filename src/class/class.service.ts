@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Like, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Class } from './entities/class.entity';
 
 @Injectable()
@@ -12,11 +12,20 @@ export class ClassService {
         private readonly classRepository: Repository<Class>,
     ) {}
 
-    async findAll(currentUser: any): Promise<Class[]> {
+    async findAll(currentUser: any, name?: string): Promise<Class[]> {
         const executor = `[${currentUser.fullName}] [findAll]`;
         this.logger.log(`${executor} Fetching all classes with statusData true`);
-        return this.classRepository.find({ where: { statusData: true }, order: { name: 'ASC' } });
-    }
+    
+        const query = this.classRepository.createQueryBuilder('class')
+          .where('class.statusData = :statusData', { statusData: true })
+          .orderBy('class.name', 'ASC');
+    
+        if (name) {
+            query.andWhere('class.name LIKE :name', { name: `%${name}%` });
+        }
+    
+        return await query.getMany();
+    } 
 
     async findOne(id: number, currentUser: any): Promise<Class> {
         const executor = `[${currentUser.fullName}] [findOne]`;
@@ -27,18 +36,5 @@ export class ClassService {
             throw new NotFoundException(`Class not found`);
         }
         return classEntity;
-    }
-
-    async searchByName(nama: string, currentUser: any): Promise<Class[]> {
-        const executor = `[${currentUser.fullName}] [searchByName]`;
-        this.logger.log(`${executor} Searching classes with name containing ${nama}`);
-        const lowerCaseNama = nama.trim().replace(/\s+/g, ' ').toLowerCase();
-        return this.classRepository.find({ 
-            where: { 
-                name: Like(`%${lowerCaseNama}%`), 
-                statusData: true 
-            }, 
-            order: { updatedAt: 'DESC' } 
-        });
     }
 }
