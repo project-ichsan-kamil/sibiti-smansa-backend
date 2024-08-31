@@ -39,7 +39,7 @@ export class UserRoleController {
     );
     return {
       statusCode: 201,
-      message: 'Role berhasil dibuat.',
+      message: 'Role berhasil ditambahkan.',
       data: newRole,
     };
   }
@@ -58,16 +58,17 @@ export class UserRoleController {
 
   @Get('list-admins')
   @Roles(UserRoleEnum.SUPER_ADMIN)
-  async getListAdmins(@Req() req) {
-    const currentUser = req.user;
-    const admins = await this.userRoleService.getListAdmin(currentUser);
-    return {
-      statusCode: 200,
-      message: 'Daftar Admin berhasil ditemukan.',
-      count: admins.length,
-      data: admins,
-    };
+  async getListAdmins(@Req() req, @Query('name') name: string) {
+      const currentUser = req.user;
+      const admins = await this.userRoleService.getListAdmin(currentUser, name);
+      return {
+          statusCode: 200,
+          message: 'Daftar Admin berhasil ditemukan.',
+          count: admins.length,
+          data: admins,
+      };
   }
+
 
   @Get('list-guru')
   @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN)

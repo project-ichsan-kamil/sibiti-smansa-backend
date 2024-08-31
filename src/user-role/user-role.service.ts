@@ -113,31 +113,38 @@ export class UserRoleService {
     return savedRole;
   }
 
-  async getListAdmin(currentUser: any): Promise<UserRole[]> {
+  async getListAdmin(currentUser: any, name?: string): Promise<any> {
     const executor = `[${currentUser.fullName}] [getListAdmin]`;
     this.logger.log(`${executor} Fetching list of Admins`);
   
-    // Find all users with the Admin role
-    const admins = await this.userRoleRepository.find({
-      where: {
-        role: UserRoleEnum.ADMIN,
-        statusData: true,
-        user: {
-          statusData: true, // User must be active
-          isVerified: true, // User must be verified
-        },
-      },
-      relations: ['user'], // Include related user information
-    });
+    // Membangun query untuk menemukan semua pengguna dengan role Admin
+    const query = this.userRoleRepository.createQueryBuilder('userRole')
+      .leftJoinAndSelect('userRole.user', 'user')
+      .leftJoinAndSelect('user.profile', 'profile')
+      .where('userRole.role = :role', { role: UserRoleEnum.ADMIN })
+      .andWhere('userRole.statusData = :statusData', { statusData: true })
+      .andWhere('user.statusData = :statusData', { statusData: true })
+      .andWhere('user.isVerified = :isVerified', { isVerified: true });
+
+    // Menambahkan filter pencarian berdasarkan nama jika parameter name diberikan
+    if (name) {
+        query.andWhere('profile.fullName LIKE :name', { name: `%${name}%` });
+    }
+  
+    const admins = await query.getMany();
   
     if (!admins.length) {
       this.logger.warn(`${executor} No Admins found`);
-      throw new HttpException('No Admin user roles found', HttpStatus.NOT_FOUND);
     }
   
     this.logger.log(`${executor} ${admins.length} Admins found`);
-    return admins;
-  }
+    return admins.map(admin => ({
+      id: admin.id,
+      userId: admin.user.id,
+      fullName: admin.user.profile.fullName,
+      role: admin.role
+    }));
+}
   
   async getListGuru(currentUser: any, name?: string): Promise<any[]> {
     const executor = `[${currentUser.fullName}] [getListGuru]`;
@@ -166,8 +173,8 @@ export class UserRoleService {
     this.logger.log(`${executor} ${gurus.length} Gurus found`);
     return gurus.map(guru => ({
       id: guru.id,
+      userId: guru.user.id,
       fullName: guru.user.profile.fullName,
-      email: guru.user.email,
       subject: guru.subject ? guru.subject.name : null,
     }));
   }
@@ -213,7 +220,7 @@ export class UserRoleService {
 
     if (!role) {
       this.logger.error(`${executor} Active Guru role with ID: ${roleId} not found`);
-      throw new HttpException('Guru role not found or already deactivated', HttpStatus.NOT_FOUND);
+      throw new HttpException('Role Guru tidak ditemukan atau sudah dinonaktifkan', HttpStatus.NOT_FOUND);
     }
 
     // Update the statusData to false instead of deleting
@@ -234,7 +241,7 @@ export class UserRoleService {
 
     if (!role) {
       this.logger.error(`${executor} Active Admin role with ID: ${roleId} not found`);
-      throw new HttpException('Admin role not found or already deactivated', HttpStatus.NOT_FOUND);
+      throw new HttpException('Role Admin tidak ditemukan atau sudah dinonaktifkan', HttpStatus.NOT_FOUND);
     }
 
     // Update the statusData to false instead of deleting
@@ -255,7 +262,7 @@ export class UserRoleService {
 
     if (!role) {
       this.logger.error(`${executor} Role with ID: ${roleId} not found`);
-      throw new HttpException('Role not found', HttpStatus.NOT_FOUND);
+      throw new HttpException('Role tidak ditemukan', HttpStatus.NOT_FOUND);
     }
 
     this.logger.log(`${executor} Role with ID: ${roleId} fetched successfully`);
@@ -275,7 +282,7 @@ export class UserRoleService {
 
     if (!role) {
       this.logger.error(`${executor} Guru role with ID: ${roleId} not found`);
-      throw new HttpException('Guru role not found or inactive', HttpStatus.NOT_FOUND);
+      throw new HttpException('Role Guru tidak ditemukan atau sudah dinonaktifkan', HttpStatus.NOT_FOUND);
     }
 
     // Fetch the new subject
@@ -283,7 +290,7 @@ export class UserRoleService {
 
     if (!newSubject) {
       this.logger.error(`${executor} Subject with ID: ${newSubjectId} not found`);
-      throw new HttpException('Subject not found or inactive', HttpStatus.NOT_FOUND);
+      throw new HttpException('Mata pelajaran tidak ditemukan', HttpStatus.NOT_FOUND);
     }
 
     // Update the subject
@@ -294,9 +301,6 @@ export class UserRoleService {
     this.logger.log(`${executor} Subject for Guru role with ID: ${roleId} updated successfully`);
     return updatedRole;
   }
-
-
-  
 
   async updateRoleGuru(
     roleId: number,
