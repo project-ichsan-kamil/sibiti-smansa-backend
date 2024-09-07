@@ -42,7 +42,7 @@ export class UsersController {
     );
     return {
       statusCode: 201,
-      message: 'User created successfully',
+      message: 'User berhasil dibuat',
       data: result,
     };
   }
@@ -61,9 +61,9 @@ export class UsersController {
     return {
       statusCode: 200,
       message:
-        result.length > 0
-          ? 'User(s) successfully verified'
-          : 'No users were verified',
+      result.length > 0
+        ? 'User berhasil diverifikasi'
+        : 'Tidak ada user yang diverifikasi',
       count: result.length,
       verifiedUsers: result,
     };
@@ -136,7 +136,7 @@ export class UsersController {
     const result = await this.userService.deleteUser(userId, currentUser);
     return {
       statusCode: 200,
-      message: 'The user has been successfully deleted.',
+      message: 'User berhasil di hapus',
       data: result,
     };
   }

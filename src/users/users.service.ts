@@ -125,7 +125,7 @@ export class UserService {
   
       if (!user) {
         this.logger.error(`${executor} User with ID ${verifyUserId} not found`);
-        throw new HttpException(`User with ID ${verifyUserId} not found`, HttpStatus.NOT_FOUND);
+        throw new HttpException(`User dengan ID ${verifyUserId} tidak ditemukan`, HttpStatus.NOT_FOUND);
       }
   
       user.updatedBy = currentUser.fullName;
@@ -375,7 +375,7 @@ export class UserService {
       await workbook.xlsx.load(file.buffer);
     } catch (error) {
       this.logger.error(`${executor} Error loading Excel file: ${error.message}`, error.stack);
-      throw new HttpException('Failed to load Excel file', HttpStatus.BAD_REQUEST);
+      throw new HttpException('Gagal memuat file Excel', HttpStatus.BAD_REQUEST);
     }
   
     const errorMessages: string[] = [];
@@ -479,7 +479,7 @@ export class UserService {
         `${executor} Current user is not super admin, aborting user creation`,
       );
       throw new HttpException(
-        'Only super admin can create a new user',
+        'Hanya super admin yang dapat membuat user baru',
         HttpStatus.FORBIDDEN,
       );
     }
