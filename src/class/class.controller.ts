@@ -11,13 +11,26 @@ export class ClassController {
   constructor(private readonly classService: ClassService) {}
 
   @Get()
-  @Roles(UserRoleEnum.SUPER_ADMIN)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
   async findAll(@Req() req: any, @Query('name') name?: string) {
     const currentUser = req.user;
     const result = await this.classService.findAll(currentUser, name);
     return {
       statusCode: 200,
       message: 'Data berhasil ditemukan',
+      count: result.length,
+      data: result,
+    };
+  }
+
+  @Get('students')
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
+  async findAllStudents(@Req() req: any, @Query('classId') classId?: number, @Query('name') name?: string) {
+    const currentUser = req.user;
+    const result = await this.classService.findAllStudents(classId, name);
+    return {
+      statusCode: 200,
+      message: 'Data siswa berhasil ditemukan',
       count: result.length,
       data: result,
     };
@@ -34,4 +47,5 @@ export class ClassController {
       data: result,
     };
   }
+
 }
