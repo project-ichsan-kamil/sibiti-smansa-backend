@@ -445,6 +445,52 @@ export class ExamService {
     return exam;
   }
 
+  async getExamData(params: any, currentUser: any): Promise<Exam[]> {
+    try {
+      // Ambil parameter yang dikirimkan untuk filtering
+      const { statusExam, subjectId, examType } = params;            
+  
+      // Mulai membangun query
+      let query = this.examRepository.createQueryBuilder('exam')
+        .where('exam.statusData = :statusData', { statusData: true }); // Default statusData true
+  
+      // Jika statusExam disertakan, tambahkan filter statusExam
+      if (statusExam) {
+        query = query.andWhere('exam.statusExam IN (:...statusExam)', { statusExam });
+      }
+  
+      // Filter berdasarkan ownerId jika user adalah guru (tanpa role admin atau super admin)
+      if (
+        currentUser.roles.includes(UserRoleEnum.GURU) &&
+        !currentUser.roles.includes(UserRoleEnum.ADMIN) &&
+        !currentUser.roles.includes(UserRoleEnum.SUPER_ADMIN)
+      ) {
+        query = query.andWhere('exam.ownerId = :ownerId', { ownerId: currentUser.id });
+      }
+  
+      // Jika subjectId disertakan (opsional)
+      if (subjectId) {
+        query = query.andWhere('exam.subjectId = :subjectId', { subjectId });
+      }
+  
+      // Filter berdasarkan ExamType jika disertakan
+      if (examType) {
+        query = query.andWhere('exam.type = :examType', { examType });
+      }
+  
+      // Eksekusi query dan ambil hasil
+      const examList = await query.getMany();      
+  
+      return examList;
+  
+    } catch (error) {
+      throw new HttpException(
+        'Gagal mengambil data ujian',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+  
   // Validasi otherExam jika sameAsOtherExam true
   private async validateOtherExam(
     createQuisDailyExamDto: CreateQuizDailyExamDto,

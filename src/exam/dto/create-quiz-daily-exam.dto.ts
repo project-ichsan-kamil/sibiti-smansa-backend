@@ -12,7 +12,6 @@ export class CreateQuizDailyExamDto extends BaseExamDto {
   @IsNotEmpty()
   sameAsOtherExam: boolean;
 
-  @IsInt()
   @IsOptional()
   otherExamId?: number;
 }

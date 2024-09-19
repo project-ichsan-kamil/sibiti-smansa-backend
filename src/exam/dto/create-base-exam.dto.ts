@@ -26,7 +26,6 @@ export class BaseExamDto {
   @IsNotEmpty()
   passingGrade: number;
 
-  @IsInt()
   @IsNotEmpty()
   subjectId: number;
 
