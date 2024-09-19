@@ -145,4 +145,17 @@ export class UserRoleController {
       data: updatedRole,
     };
   }
+
+  //get subject guru
+  @Get('guru-subjects')
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
+  async getSubjectsForGuru(@Req() req: any) {
+    const currentUser = req.user;
+    const subjects = await this.userRoleService.getSubjectsForGuru(currentUser);
+    return {
+      statusCode: 200,
+      message: 'Daftar mata pelajaran untuk Guru berhasil ditemukan.',
+      data: subjects,
+    };
+  }
 }

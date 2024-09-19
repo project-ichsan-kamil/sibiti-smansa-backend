@@ -359,6 +359,35 @@ export class UserRoleService {
     return updatedRole;
   }
 
+  async getSubjectsForGuru(currentUser: any) {
+    // Cek apakah pengguna memiliki role 'admin' atau 'super admin'
+    const roles = currentUser.roles;
+    const hasAdminRole = roles.includes(UserRoleEnum.ADMIN) || roles.includes(UserRoleEnum.SUPER_ADMIN);
+  
+    if (hasAdminRole) {
+      // Jika pengguna adalah admin atau super admin, ambil semua subjects yang statusData true
+      return this.subjectRepository.find({
+        where: { statusData: true },
+      });
+      
+    } else if (roles.includes(UserRoleEnum.GURU)) {
+      // Jika pengguna adalah guru, ambil subject berdasarkan role subject yang sudah di-assign ke dia
+      const userRoles = await this.userRoleRepository.find({
+        where: { user: { id: currentUser.id, statusData: true, isVerified: true }, statusData: true },
+        relations: ['subject'],
+      });
+  
+      // Ambil subject yang di-assign ke pengguna
+      const subjects = userRoles.map(role => role.subject);
+      return subjects;
+    }
+  
+    // Jika tidak ada role yang cocok, kembalikan array kosong atau throw error
+    return [];
+  }
+  
+  
+
   // Helper function to check if the user is an Admin
   private async isAdmin(userId: number): Promise<boolean> {
     return !!(await this.userRoleRepository.findOne({
