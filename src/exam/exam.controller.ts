@@ -30,7 +30,6 @@ export class ExamController {
     @Body(ValidationPipe) createQuisDailyExamDto: CreateQuizDailyExamDto,
     @Req() req: any,
   ) {
-    console.log(createQuisDailyExamDto);
     
     const currentUser = req.user;
     const result = await this.examService.createExamQuisAndUH(

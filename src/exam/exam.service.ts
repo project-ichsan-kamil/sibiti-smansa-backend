@@ -1,6 +1,6 @@
 import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Not, Repository } from 'typeorm';
+import { DataSource, In, Not, Repository } from 'typeorm';
 import { Exam } from './entities/exam.entity';
 import { CreateQuizDailyExamDto } from './dto/create-quiz-daily-exam.dto';
 import { ParticipantExamService } from '../participant-exam/participant-exam.service';
@@ -12,7 +12,6 @@ import { CreateUasUtsDto } from './dto/create-uas-uts-exam.dto';
 import { UserRole } from 'src/user-role/entities/user-role.entity';
 import { Question } from 'src/question/entities/question.entity';
 import { BaseEditExamDto } from './dto/base-edit-exam.dto';
-import { log } from 'console';
 
 @Injectable()
 export class ExamService {
@@ -94,6 +93,7 @@ export class ExamService {
       this.logger.error(
         `${executor} Error during exam creation: ${error.message}`,
       );
+      this.logger.error( `${executor} Stack Trace: ${error.stack}`,); // Log stack trace error
       await queryRunner.rollbackTransaction();
       throw new HttpException(
         error.message || 'Error during exam creation',
@@ -661,14 +661,22 @@ export class ExamService {
   ): Promise<{ subject: Subject; owner: Users }> {
     const executor = `[${currentUser.fullName}][validateCommonExamData]`;
 
-    // Check if exam with the same name already exists
+    const upcomingStatus = [StatusExam.DRAFT, StatusExam.PUBLISH, StatusExam.SHOW, StatusExam.WAITING_SUBMITTER];
+
     const existingExam = await queryRunner.manager.findOne(Exam, {
-      where: { name: examDto.name, statusData: true },
+      where: {
+        name: examDto.name,
+        owner: { id: currentUser.id },
+        statusData: true,
+        statusExam: In(upcomingStatus),
+        subject: { id : examDto.subjectId},
+        type: examDto.type,
+      },
     });
     if (existingExam) {
       this.logger.error(`${executor} Exam with the same name already exists`);
       throw new HttpException(
-        'An exam with the same name already exists',
+        `Nama "${examDto.name}" sudah terdaftar pada ${examDto.type} dengan status upcoming dan mata pelajaran yang sama. Harap gunakan nama yang berbeda atau periksa kembali data Anda.`,
         HttpStatus.BAD_REQUEST,
       );
     }
