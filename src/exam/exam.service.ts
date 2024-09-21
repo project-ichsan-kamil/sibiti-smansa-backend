@@ -1,6 +1,6 @@
 import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { DataSource, Not, Repository } from 'typeorm';
 import { Exam } from './entities/exam.entity';
 import { CreateQuizDailyExamDto } from './dto/create-quiz-daily-exam.dto';
 import { ParticipantExamService } from '../participant-exam/participant-exam.service';
@@ -18,10 +18,12 @@ import { log } from 'console';
 export class ExamService {
   private readonly logger = new Logger(ExamService.name);
 
+
   constructor(
     @InjectRepository(Exam)
     private readonly examRepository: Repository<Exam>,
     private readonly participantExamService: ParticipantExamService,
+    private dataSource: DataSource
   ) {}
 
   async createExamQuisAndUH(
@@ -445,14 +447,19 @@ export class ExamService {
     return exam;
   }
 
-  async getExamData(params: any, currentUser: any): Promise<Exam[]> {
+  async getExamData(params: any, currentUser: any): Promise<any> {
     try {
       // Ambil parameter yang dikirimkan untuk filtering
       const { statusExam, subjectId, examType } = params;            
   
       // Mulai membangun query
       let query = this.examRepository.createQueryBuilder('exam')
-        .where('exam.statusData = :statusData', { statusData: true }); // Default statusData true
+        .leftJoinAndSelect('exam.subject', 'subject') // Join tabel subject
+        .leftJoinAndSelect('exam.participants', 'participants') // Join tabel participants (ParticipantExam)
+        .leftJoinAndSelect('participants.user', 'user') // Join tabel user di dalam ParticipantExam
+        .leftJoinAndSelect('participants.class', 'class') // Join tabel class di dalam ParticipantExam
+        .leftJoinAndSelect('user.profile', 'profile')
+        .where('exam.statusData = :statusData', { statusData: true });
   
       // Jika statusExam disertakan, tambahkan filter statusExam
       if (statusExam) {
@@ -478,19 +485,44 @@ export class ExamService {
         query = query.andWhere('exam.type = :examType', { examType });
       }
   
-      // Eksekusi query dan ambil hasil
-      const examList = await query.getMany();      
+      const examList = await query.getMany();   
+      // Memetakan data exam agar subject dan participants hanya berisi field yang diperlukan
+      const simplifiedExamList = examList.map(exam => ({
+        ...exam,
+        subject: {
+          id : exam.subject.id,
+          name: exam.subject.name
+        },
+        participants: exam.participants.map(participant => {
+          // Periksa participantType pada exam
+          if (exam.participantType === 'CLASS') {
+            // Jika participantType adalah 'CLASS', tampilkan data class
+            return participant.class ? {
+              id: participant.class.id,
+              name: participant.class.name,
+            } : null;
+          } else if (exam.participantType === 'USER') {
+            // Jika participantType adalah 'USER', tampilkan data user
+            return participant.user ? {
+              id: participant.user.id,
+              name: participant.user.profile ? participant.user.profile.fullName : null, 
+            } : null;
+          }
+          return null;
+        }).filter(participant => participant !== null) // Filter participant yang null
+      }));
   
-      return examList;
+      return simplifiedExamList;
   
     } catch (error) {
+      console.log(error);
       throw new HttpException(
         'Gagal mengambil data ujian',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
-  
+
   // Validasi otherExam jika sameAsOtherExam true
   private async validateOtherExam(
     createQuisDailyExamDto: CreateQuizDailyExamDto,
