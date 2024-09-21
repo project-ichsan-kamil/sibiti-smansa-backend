@@ -448,9 +448,11 @@ export class ExamService {
   }
 
   async getExamData(params: any, currentUser: any): Promise<any> {
+    const executor = `[${currentUser.fullName}] [getExamData]`;
     try {
+      this.logger.log(`${executor} Starting the process to retrieve exam data.`);
       // Ambil parameter yang dikirimkan untuk filtering
-      const { statusExam, subjectId, examType } = params;            
+      const { statusExam, subjectId, examType, name } = params;            
   
       // Mulai membangun query
       let query = this.examRepository.createQueryBuilder('exam')
@@ -484,7 +486,13 @@ export class ExamService {
       if (examType) {
         query = query.andWhere('exam.type = :examType', { examType });
       }
+
+      if (name) {
+        query = query.andWhere('exam.name LIKE :name', { name: `%${name}%` }); // Gunakan LIKE untuk pencarian parsial
+      }
   
+      query = query.orderBy('exam.updatedAt', 'DESC');
+
       const examList = await query.getMany();   
       // Memetakan data exam agar subject dan participants hanya berisi field yang diperlukan
       const simplifiedExamList = examList.map(exam => ({
@@ -509,13 +517,13 @@ export class ExamService {
             } : null;
           }
           return null;
-        }).filter(participant => participant !== null) // Filter participant yang null
+        }).filter(participant => participant !== null)
       }));
   
       return simplifiedExamList;
   
     } catch (error) {
-      console.log(error);
+      this.logger.error(`${executor} Failed to retrieve exam data.`, error.stack); 
       throw new HttpException(
         'Gagal mengambil data ujian',
         HttpStatus.INTERNAL_SERVER_ERROR,
