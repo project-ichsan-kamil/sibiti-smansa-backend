@@ -364,7 +364,7 @@ export class UserService {
     return users;
   }
 
-  async createUserFormTemplateExcel(file: Multer.File, currentUser: any): Promise<any> {
+  async createUserFormTemplateExcel(file: Express.Multer.File, currentUser: any): Promise<any> {
     const executor = `[${currentUser.fullName}] [createUserFormTemplateExcel]`;
     this.logger.log(`${executor} Starting Excel file processing`);
   

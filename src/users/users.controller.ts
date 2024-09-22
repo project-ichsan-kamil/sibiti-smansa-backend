@@ -164,7 +164,7 @@ export class UsersController {
 
   @Post('upload-excel')
   @UseInterceptors(FileInterceptor('file'))
-  async uploadExcel(@UploadedFile() file: Multer.File, @Req() req) {
+  async uploadExcel(@UploadedFile() file: Express.Multer.File, @Req() req) {
     const currentUser = req.user;
     if (!file) {
       throw new HttpException('No file provided', HttpStatus.BAD_REQUEST);

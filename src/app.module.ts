@@ -16,6 +16,7 @@ import { ParticipantExamModule } from './participant-exam/participant-exam.modul
 import { QuestionModule } from './question/question.module';
 import { ParticipantAnswerModule } from './participant-answer/participant-answer.module';
 import { AbsentModule } from './absent/absent.module';
+import { S3Module } from './s3/s3.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { AbsentModule } from './absent/absent.module';
     QuestionModule,
     ParticipantAnswerModule,
     AbsentModule,
+    S3Module,
   ],
   controllers: [],
   providers: [EncryptionService],
