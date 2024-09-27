@@ -1,4 +1,4 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { S3 } from 'aws-sdk';
 import * as fs from 'fs';
 import * as mime from 'mime-types';
@@ -6,9 +6,12 @@ import { extname } from 'path';
 
 @Injectable()
 export class S3Service {
+  private readonly logger = new Logger(S3Service.name);
+
   private s3: S3;
   private bucketName = 'sibiti-smansa';
   private endpoint = 'https://is3.cloudhost.id';
+
 
   constructor() {
     this.s3 = new S3({
@@ -37,6 +40,7 @@ export class S3Service {
 
     try {
       const data = await this.s3.upload(params).promise();
+      this.logger.log("Upload file from tinymce")
       return data.Location; // S3 URL of the uploaded file
     } catch (error) {
       throw new HttpException(`Error uploading file: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);

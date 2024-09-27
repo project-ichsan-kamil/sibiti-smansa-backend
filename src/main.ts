@@ -16,6 +16,7 @@ async function bootstrap() {
   app.use(cookieParser());
   app.enableCors({
     origin: 'http://localhost:5173', // Update this with your frontend URL
+    methods: 'GET,POST,PUT,DELETE',
     credentials: true,
   });
 
