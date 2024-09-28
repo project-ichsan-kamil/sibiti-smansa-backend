@@ -81,4 +81,19 @@ export class QuestionController {
       data: question,
     };
   }
+
+  @Get('exam')
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
+  async getQuestionsByExamId(
+      @Query('examId') examId: number,
+      @Req() req: any,
+  ) {
+      const questions = await this.questionService.getQuestionsByExamId(examId, req.user);
+
+      return {
+          statusCode: HttpStatus.OK,
+          message: 'Questions retrieved successfully',
+          data: questions,
+      };
+  }
 }

@@ -23,25 +23,25 @@ import {
     @Column({nullable: false })
     questionNumber: number;
   
-    @Column({ nullable: true })
+    @Column({ type: 'text', nullable: true })
     question: string;
-  
-    @Column({ nullable: true })
+
+    @Column({ type: 'text', nullable: true })
     A: string;
-  
-    @Column({ nullable: true })
+
+    @Column({ type: 'text', nullable: true })
     B: string;
-  
-    @Column({ nullable: true })
+
+    @Column({ type: 'text', nullable: true })
     C: string;
-  
-    @Column({ nullable: true })
+
+    @Column({ type: 'text', nullable: true })
     D: string;
-  
-    @Column({ nullable: true })
+
+    @Column({ type: 'text', nullable: true })
     E: string;
-  
-    @Column({ nullable: true })
+
+    @Column({ type: 'text', nullable: true })
     F: string;
   
     @Column({ type: 'enum', enum: AnswerKey, nullable: true })

@@ -186,4 +186,17 @@ export class QuestionService {
     return question;
   }
 
+  async getQuestionsByExamId(examId: number, currentUser: any) {
+    const executor = `[${currentUser.fullName}] [getQuestionsByExamId ]`;
+    this.logger.log(`${executor} Retrieved question for exam ${examId}`);
+    return await this.questionRepository.find({
+      where: { 
+        exam: { id: examId }, 
+        statusData: true 
+      },
+      order: {
+        questionNumber: 'ASC', 
+      }
+    });
+  }
 }
