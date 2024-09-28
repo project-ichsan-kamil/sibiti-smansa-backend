@@ -146,4 +146,16 @@ export class ExamController {
       data: exams,
     };
   }
+
+  @Get('get-by')
+  @Roles(UserRoleEnum.GURU, UserRoleEnum.ADMIN, UserRoleEnum.SUPER_ADMIN)
+  async getExamById(@Query('id') id: number, @Req() req: any) {
+    const currentUser = req.user; 
+      const examData = await this.examService.getExamById(id, currentUser);
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Data ujian berhasil diambil',
+        data: examData,
+      };
+  }
 }

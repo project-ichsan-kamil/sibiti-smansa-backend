@@ -21,6 +21,8 @@ export class ExamService {
   constructor(
     @InjectRepository(Exam)
     private readonly examRepository: Repository<Exam>,
+    @InjectRepository(Question)
+    private readonly questionRepository: Repository<Question>,
     private readonly participantExamService: ParticipantExamService,
     private dataSource: DataSource
   ) {}
@@ -494,31 +496,57 @@ export class ExamService {
       query = query.orderBy('exam.updatedAt', 'DESC');
 
       const examList = await query.getMany();   
+
       // Memetakan data exam agar subject dan participants hanya berisi field yang diperlukan
-      const simplifiedExamList = examList.map(exam => ({
-        ...exam,
-        subject: {
-          id : exam.subject.id,
-          name: exam.subject.name
-        },
-        participants: exam.participants.map(participant => {
-          // Periksa participantType pada exam
-          if (exam.participantType === 'CLASS') {
-            // Jika participantType adalah 'CLASS', tampilkan data class
-            return participant.class ? {
-              id: participant.class.id,
-              name: participant.class.name,
-            } : null;
-          } else if (exam.participantType === 'USER') {
-            // Jika participantType adalah 'USER', tampilkan data user
-            return participant.user ? {
-              id: participant.user.id,
-              name: participant.user.profile ? participant.user.profile.fullName : null, 
-            } : null;
-          }
-          return null;
-        }).filter(participant => participant !== null)
-      }));
+      const simplifiedExamList = await Promise.all(examList.map(async (exam) => {
+        // Mendapatkan jumlah soal yang selesai dan total soal
+        const completedQuestionsCount = await this.questionRepository.count({
+            where: {
+                exam: { id: exam.id },
+                complete: true,
+            },
+        });
+        
+        const totalQuestionsCount = await this.questionRepository.count({
+            where: {
+                exam: { id: exam.id },
+            },
+        });
+
+        // Membuat objek simplifiedExam dengan progress
+        return {
+            ...exam,
+            progress:{
+              progress: `${completedQuestionsCount}/${exam.sumQuestion}`,
+              isComplete: completedQuestionsCount == exam.sumQuestion
+            }
+              ,
+            subject: {
+                id: exam.subject.id,
+                name: exam.subject.name,
+            },
+            participants: exam.participants
+                .map((participant) => {
+                    if (exam.participantType === 'CLASS') {
+                        return participant.class
+                            ? {
+                                  id: participant.class.id,
+                                  name: participant.class.name,
+                              }
+                            : null;
+                    } else if (exam.participantType === 'USER') {
+                        return participant.user
+                            ? {
+                                  id: participant.user.id,
+                                  name: participant.user.profile ? participant.user.profile.fullName : null,
+                              }
+                            : null;
+                    }
+                    return null;
+                })
+                .filter((participant) => participant !== null),
+        };
+    }));
   
       return simplifiedExamList;
   
@@ -764,4 +792,77 @@ export class ExamService {
 
     return submitterRole.user;
   }
+
+  async getExamById(id: number, currentUser: any): Promise<any> {
+    const executor = `[${currentUser.fullName}] [getExamById]`;
+    try {
+      this.logger.log(`${executor} Starting the process to retrieve exam data by ID: ${id}.`);
+  
+      // Mulai membangun query untuk mendapatkan data ujian berdasarkan ID
+      let query = this.examRepository.createQueryBuilder('exam')
+        .leftJoinAndSelect('exam.subject', 'subject') // Join tabel subject
+        .leftJoinAndSelect('exam.participants', 'participants') // Join tabel participants (ParticipantExam)
+        .leftJoinAndSelect('participants.user', 'user') // Join tabel user di dalam ParticipantExam
+        .leftJoinAndSelect('participants.class', 'class') // Join tabel class di dalam ParticipantExam
+        .leftJoinAndSelect('user.profile', 'profile')
+        .where('exam.id = :id', { id }) // Filter berdasarkan ID ujian
+        .andWhere('exam.statusData = :statusData', { statusData: true }); // Pastikan statusData true
+  
+      const exam = await query.getOne();
+  
+      // Jika ujian tidak ditemukan, lemparkan error 404
+      if (!exam) {
+        this.logger.warn(`${executor} Exam with ID ${id} not found.`);
+        throw new HttpException(
+          `Ujian dengan ID ${id} tidak ditemukan.`,
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      const progress = await this.questionRepository.find({
+        where: {
+            exam: {id : id},   // Filter berdasarkan examId
+            complete: true, 
+        },
+    });
+    
+  
+      // Memetakan data ujian agar subject dan participants hanya berisi field yang diperlukan
+      const simplifiedExam = {
+        ...exam,
+        subject: {
+          id: exam.subject.id,
+          name: exam.subject.name
+        },
+        participants: exam.participants.map(participant => {
+          // Periksa participantType pada exam
+          if (exam.participantType === 'CLASS') {
+            // Jika participantType adalah 'CLASS', tampilkan data class
+            return participant.class ? {
+              id: participant.class.id,
+              name: participant.class.name,
+            } : null;
+          } else if (exam.participantType === 'USER') {
+            // Jika participantType adalah 'USER', tampilkan data user
+            return participant.user ? {
+              id: participant.user.id,
+              name: participant.user.profile ? participant.user.profile.fullName : null,
+            } : null;
+          }
+          return null;
+        }).filter(participant => participant !== null) // Filter participant yang null
+      };
+  
+      this.logger.log(`${executor} Successfully retrieved exam data by ID: ${id}.`);
+      return simplifiedExam;
+  
+    } catch (error) {
+      this.logger.error(`${executor} Failed to retrieve exam data by ID: ${id}.`, error.stack);
+      throw new HttpException(
+        'Gagal mengambil data ujian berdasarkan ID',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+  
 }

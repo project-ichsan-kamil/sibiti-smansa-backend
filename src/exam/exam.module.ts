@@ -7,9 +7,10 @@ import { ParticipantExam } from 'src/participant-exam/entities/participant-exam.
 import { ParticipantExamService } from 'src/participant-exam/participant-exam.service';
 import { Class } from 'src/class/entities/class.entity';
 import { Users } from 'src/users/entities/user.entity';
+import { Question } from 'src/question/entities/question.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Exam, ParticipantExam, Class, Users])],
+  imports: [TypeOrmModule.forFeature([Exam, ParticipantExam, Class, Users, Question])],
   controllers: [ExamController],
   providers: [ExamService, ParticipantExamService],
 })
