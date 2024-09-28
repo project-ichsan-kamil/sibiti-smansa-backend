@@ -18,6 +18,7 @@ import { Roles } from 'src/auth/decorator/roles.decorator';
 import { UserRoleEnum } from 'src/user-role/enum/user-role.enum';
 import { CreateUasUtsDto } from './dto/create-uas-uts-exam.dto';
 import { BaseEditExamDto } from './dto/base-edit-exam.dto';
+import { StatusExam } from './enum/exam.enum';
 
 @Controller('exam')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -103,34 +104,14 @@ export class ExamController {
     };
   }
 
-  @Patch('publish/quiz-uh')
+  @Patch('update-status')
   @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
-  async publishQuizUh(@Query('examId') examId: number, @Req() req: any) {
+  async updateStatusExam(@Query('examId') examId: number, @Query('status') status: StatusExam, @Req() req: any) {
     const currentUser = req.user;
-    const result = await this.examService.publishExam(
-      examId,
-      currentUser,
-      'QUIZ_UH',
-    );
+    const result = await this.examService.updateStatusExam(examId, status, currentUser);
     return {
       statusCode: HttpStatus.OK,
-      message: `Quiz/UH exam has been successfully published.`,
-      data: result,
-    };
-  }
-
-  @Patch('publish/uts-uas')
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN)
-  async publishUtsUas(@Query('examId') examId: number, @Req() req: any) {
-    const currentUser = req.user;
-    const result = await this.examService.publishExam(
-      examId,
-      currentUser,
-      'UTS_UAS',
-    );
-    return {
-      statusCode: HttpStatus.OK,
-      message: `UTS/UAS exam has been successfully published.`,
+      message: `Status ujian berhasil diperbarui`,
       data: result,
     };
   }
