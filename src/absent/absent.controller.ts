@@ -11,7 +11,6 @@ import {
 } from '@nestjs/common';
 import { AbsentService } from './absent.service';
 import { CreateAbsentDto } from './dto/create-absent.dto';
-import { UpdateAbsentDto } from './dto/update-absent.dto';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt.auth.guard';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
 import { Roles } from 'src/auth/decorator/roles.decorator';
@@ -47,6 +46,19 @@ export class AbsentController {
       statusCode: 200,
       message: 'Absences retrieved successfully',
       count: result.length,
+      data: result,
+    };
+  }
+
+  @Get('check-today')
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU, UserRoleEnum.SISWA)
+  async checkToday(@Req() req: any): Promise<any> {
+    const currentUser = req.user; 
+    const result = await this.absentService.checkToday(currentUser);
+
+    return {
+      statusCode: 200,
+      message: 'Absences retrieved successfully',
       data: result,
     };
   }

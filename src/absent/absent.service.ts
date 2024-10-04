@@ -11,6 +11,7 @@ import { CreateAbsentDto } from './dto/create-absent.dto';
 import { Users } from 'src/users/entities/user.entity';
 import * as moment from 'moment-timezone';
 import { log } from 'console';
+import { StatusAbsent } from './enum/absent.enum';
 
 @Injectable()
 export class AbsentService {
@@ -25,49 +26,62 @@ export class AbsentService {
   async create(
     createAbsentDto: CreateAbsentDto,
     currentUser: any,
-  ): Promise<Absent> {
+): Promise<Absent> {
     const executor = `[${currentUser.fullName}][createAbsent]`;
-    const start = Date.now();
+    const start = Date.now();    
 
-    // Mendapatkan waktu saat ini dalam zona waktu Indonesia
+    // Get current time in Indonesia timezone
     const indonesiaTime = moment().tz('Asia/Jakarta');
     const todayStart = indonesiaTime.clone().startOf('day').toDate();
     const todayEnd = indonesiaTime.clone().endOf('day').toDate();
 
-    // Cek jika user ada
-    const user = await this.userRepository.findOne({
-      where: { id: currentUser.id },
-    });
-    if (!user) throw new NotFoundException('User not found');
+    // Combine user and existing absence checks
+    const [user, existingAbsent] = await Promise.all([
+        this.userRepository.findOne({ where: { id: currentUser.id } }),
+        this.absentRepository.findOne({
+            where: {
+                user: { id: currentUser.id },
+                date: Between(todayStart, todayEnd),
+            },
+        }),
+    ]);
 
-    // Cek jika absensi sudah ada untuk hari ini
-    const existingAbsent = await this.absentRepository.findOne({
-      where: {
-        user: { id: currentUser.id },
-        date: Between(todayStart, todayEnd),
-      },
-    });
-    if (existingAbsent)
-      throw new BadRequestException(
-        'You have already submitted your attendance for today.',
-      );
+    if (!user) {
+        throw new NotFoundException(`User with ID ${currentUser.id} not found`);
+    }
 
-    // Simpan absensi baru
+    if (existingAbsent) {
+        throw new BadRequestException('You have already submitted your attendance for today.');
+    }
+
+     // Define late threshold (e.g., 08:30 AM)
+     const lateThreshold = moment().tz('Asia/Jakarta').set({ hour: 7, minute: 30, second: 0, millisecond: 0 });
+
+     // Determine the status
+     let status = createAbsentDto.status;
+     if (status === StatusAbsent.PRESENT && indonesiaTime.isAfter(lateThreshold)) {
+         status = StatusAbsent.LATE; 
+     }
+
+    // Save new absence
     const savedAbsent = await this.absentRepository.save(
-      this.absentRepository.create({
-        ...createAbsentDto,
-        user,
-        date: indonesiaTime.toDate(),
-        createdBy: currentUser.fullName,
-        updatedBy: currentUser.fullName,
-      }),
+        this.absentRepository.create({
+            ...createAbsentDto,
+            status, 
+            user,
+            date: indonesiaTime.toDate(),
+            createdBy: currentUser.fullName,
+            updatedBy: currentUser.fullName,
+        }),
     );
 
     this.logger.log(
-      `${executor} Absence created successfully. Execution time: ${Date.now() - start} ms`,
+        `${executor} Absence created successfully for User ID ${currentUser.id}. Execution time: ${Date.now() - start} ms`,
     );
+
     return savedAbsent;
-  }
+}
+
 
   async getAbsents(filterDto: any, currentUser: any): Promise<any[]> {
     const executor = `[${currentUser.fullName}][getAbsents]`;
@@ -164,4 +178,45 @@ export class AbsentService {
     this.logger.log(`${executor} Successfully mapped ${result.length} absences`);
     return result;
   }
+
+  
+  async checkToday(currentUser: any): Promise<any> {
+    const executor = `[${currentUser.fullName}][checkToday]`;
+    this.logger.log(`${executor} Checking today's absence.`); 
+
+    const indonesiaTime = moment().tz('Asia/Jakarta');
+    const todayStart = indonesiaTime.clone().startOf('day').toDate();
+    const todayEnd = indonesiaTime.clone().endOf('day').toDate();
+
+    const existingAbsent = await this.absentRepository.findOne({
+      where: {
+        user: { id: currentUser.id },
+        date: Between(todayStart, todayEnd),
+        statusData: true
+      },
+    });
+
+    if (!existingAbsent) {
+      return null;
+  }
+
+    const result = {
+      id: existingAbsent.id,
+      date: new Date(existingAbsent.date).toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      }),
+      time: new Date(existingAbsent.date).toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      status: existingAbsent.status,
+    };
+        
+
+    return result;
+  }
+
+
 }
