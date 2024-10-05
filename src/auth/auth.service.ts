@@ -7,6 +7,7 @@ import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcrypt';
 import { UserRole } from 'src/user-role/entities/user-role.entity';
 import { UserRoleEnum } from 'src/user-role/enum/user-role.enum';
+import { EmailService } from 'src/common/email/email.service';
 
 @Injectable()
 export class AuthService {
@@ -15,9 +16,8 @@ export class AuthService {
   constructor(
     @InjectRepository(Users)
     private readonly usersRepository: Repository<Users>,
-    @InjectRepository(UserRole)
-    private readonly userRoleRepository: Repository<UserRole>,
     private readonly jwtService: JwtService,
+    private readonly emailService: EmailService
   ) {}
 
   async login(loginDto: LoginDto): Promise<{ token: string }> {
@@ -73,6 +73,20 @@ export class AuthService {
     );
 
     return { token };
+  }
+
+  async sendResetPasswordEmail(email: string): Promise<void> {
+    const user = await this.usersRepository.findOne({ where: { email } });
+    if (!user) {
+      throw new HttpException('Email tidak terdaftar', HttpStatus.NOT_FOUND);
+    }
+
+    // Generate JWT token
+    const token = this.jwtService.sign({ id: user.id });
+    
+    // Kirim email dengan link reset password
+    const resetLink = `http://yourdomain.com/change-password/${token}`;
+    await this.emailService.sendPassword(email, resetLink);
   }
 
   async validateUser(email: string, password: string): Promise<Users> {

@@ -17,6 +17,12 @@ export class EmailService {
     await this.sendEmail(email, subject, html);
   }
 
+  public async resetPassword(email: string, resetLink: string): Promise<void> {
+    const subject = 'Reset Password';
+    const html = `<p>Untuk mengatur ulang password Anda, silakan klik tautan berikut: <a href="${resetLink}">Reset Password</a></p>`;
+    await this.sendEmail(email, subject, html);
+  }
+
   private async sendEmail(to: string, subject: string, html: string): Promise<void> {
     const mailOptions = {
       from: 'eurekademy@gmail.com',

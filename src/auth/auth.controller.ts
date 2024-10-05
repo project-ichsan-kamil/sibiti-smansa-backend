@@ -10,16 +10,18 @@ import {
   UseGuards,
   Req,
   Logger,
+  HttpException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { Response } from 'express';
 import { JwtAuthGuard } from './jwt/jwt.auth.guard';
+import { ForgotPasswordDto } from './dto/forgotPassword.dto';
 
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
-  
+
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
@@ -30,8 +32,8 @@ export class AuthController {
       res.cookie('token', token, {
         httpOnly: true,
         secure: false,
-        maxAge: 3600000,
-      }); //TODO seacrh max session
+        maxAge: 1 * 24 * 60 * 60 * 1000,
+      });
       return res
         .status(HttpStatus.OK)
         .send({ statusCode: 200, message: 'Login successful' });
@@ -42,21 +44,35 @@ export class AuthController {
     }
   }
 
+  @Post('forgot-password')
+  @UsePipes(ValidationPipe)
+  async forgotPassword(
+    @Body() forgotPasswordDto: ForgotPasswordDto,
+  ): Promise<any> {
+    const result = await this.authService.sendResetPasswordEmail(forgotPasswordDto.email);
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Link reset password telah dikirim ke email Anda.',
+    };
+  }
+
   @Get('me')
-  @UseGuards(JwtAuthGuard) // Pastikan pengguna terautentikasi
+  @UseGuards(JwtAuthGuard)
   async getMe(@Req() req) {
-    return req.user; // req.user diset oleh middleware/jwt guard
+    return req.user;
   }
 
   @Post('logout')
-  @UseGuards(JwtAuthGuard) // Pastikan pengguna terautentikasi
-  async logout(@Res() res: Response,  @Req() req) {
+  @UseGuards(JwtAuthGuard)
+  async logout(@Res() res: Response, @Req() req) {
     const currentUser = req.user;
 
     // Menghapus token dari cookies
     res.clearCookie('token'); // Hapus token cookie
 
-    this.logger.log(`[logout] Logout successful for user : '${currentUser?.fullName}'`);
+    this.logger.log(
+      `[logout] Logout successful for user : '${currentUser?.fullName}'`,
+    );
     return res
       .status(HttpStatus.OK)
       .send({ statusCode: 200, message: 'Logout successful' });

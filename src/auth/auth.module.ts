@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { Users } from 'src/users/entities/user.entity';
 import { UserRole } from 'src/user-role/entities/user-role.entity';
+import { EmailService } from 'src/common/email/email.service';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { UserRole } from 'src/user-role/entities/user-role.entity';
       signOptions: { expiresIn: '1h' },
     }),
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, EmailService],
   controllers: [AuthController],
 })
 export class AuthModule {}
