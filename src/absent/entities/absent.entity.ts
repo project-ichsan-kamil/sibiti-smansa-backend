@@ -38,6 +38,9 @@ export class Absent {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
+  @Column({ type: 'text', nullable: true })
+  urlFile: string;
+
   @Column({ default: true })
   statusData: boolean;
 

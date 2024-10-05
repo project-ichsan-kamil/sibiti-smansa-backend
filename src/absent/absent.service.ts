@@ -26,9 +26,9 @@ export class AbsentService {
   async create(
     createAbsentDto: CreateAbsentDto,
     currentUser: any,
+    urlFile: any
 ): Promise<Absent> {
     const executor = `[${currentUser.fullName}][createAbsent]`;
-    const start = Date.now();    
 
     // Get current time in Indonesia timezone
     const indonesiaTime = moment().tz('Asia/Jakarta');
@@ -68,6 +68,7 @@ export class AbsentService {
         this.absentRepository.create({
             ...createAbsentDto,
             status, 
+            urlFile,
             user,
             date: indonesiaTime.toDate(),
             createdBy: currentUser.fullName,
@@ -76,7 +77,7 @@ export class AbsentService {
     );
 
     this.logger.log(
-        `${executor} Absence created successfully for User ID ${currentUser.id}. Execution time: ${Date.now() - start} ms`,
+        `${executor} Absence created successfully for User ID ${currentUser.id}`,
     );
 
     return savedAbsent;

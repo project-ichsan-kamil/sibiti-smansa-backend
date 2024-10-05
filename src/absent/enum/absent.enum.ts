@@ -1,6 +1,6 @@
 export enum StatusAbsent {
   PRESENT = 'PRESENT',
-  ABSENT = 'ABSENT',
+  SICK = 'SICK',
   LATE = 'LATE',
   EXCUSED = 'EXCUSED',
 }
