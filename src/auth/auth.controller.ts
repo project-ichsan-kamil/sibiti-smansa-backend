@@ -11,12 +11,14 @@ import {
   Req,
   Logger,
   HttpException,
+  Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { Response } from 'express';
 import { JwtAuthGuard } from './jwt/jwt.auth.guard';
 import { ForgotPasswordDto } from './dto/forgotPassword.dto';
+import { ChangePasswordDto } from './dto/changePassword.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -54,6 +56,19 @@ export class AuthController {
       statusCode: HttpStatus.OK,
       message: 'Link reset password telah dikirim ke email Anda.',
     };
+  }
+
+  @Post('change-password')
+  async changePassword(
+    @Query('token') token: string,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    try {
+      await this.authService.changePassword(token, changePasswordDto);
+      return { message: 'Password berhasil diubah' };
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+    }
   }
 
   @Get('me')

@@ -8,6 +8,9 @@ import * as bcrypt from 'bcrypt';
 import { UserRole } from 'src/user-role/entities/user-role.entity';
 import { UserRoleEnum } from 'src/user-role/enum/user-role.enum';
 import { EmailService } from 'src/common/email/email.service';
+import { ChangePasswordDto } from './dto/changePassword.dto';
+import { ProfileUser } from 'src/profile-user/entities/profile-user.entity';
+import { EncryptionService } from 'src/common/encryption/encryption.service';
 
 @Injectable()
 export class AuthService {
@@ -16,8 +19,11 @@ export class AuthService {
   constructor(
     @InjectRepository(Users)
     private readonly usersRepository: Repository<Users>,
+    @InjectRepository(ProfileUser)
+    private readonly profileRepository: Repository<ProfileUser>,
     private readonly jwtService: JwtService,
-    private readonly emailService: EmailService
+    private readonly emailService: EmailService,
+    private readonly encryptionService: EncryptionService,
   ) {}
 
   async login(loginDto: LoginDto): Promise<{ token: string }> {
@@ -88,6 +94,40 @@ export class AuthService {
     const resetLink = `http://yourdomain.com/change-password/${token}`;
     await this.emailService.sendPassword(email, resetLink);
   }
+
+  async changePassword(token: string, changePasswordDto: ChangePasswordDto): Promise<void> {
+    let decodedToken;
+  
+    try {
+      decodedToken = this.jwtService.verify(token);
+    } catch (error) {
+      console.log(error);
+      
+      throw new HttpException('Token tidak valid atau telah kedaluwarsa', HttpStatus.UNAUTHORIZED);
+    }
+  
+    const userId = decodedToken.id;
+  
+    const user = await this.usersRepository.findOne({ where: { id: userId, statusData: true } });
+    if (!user) {
+      throw new HttpException('User tidak ditemukan', HttpStatus.NOT_FOUND);
+    }
+  
+    // Hash password baru
+    const hashedPassword = await bcrypt.hash(changePasswordDto.newPassword, 10);
+    user.password = hashedPassword;
+
+    const userProfile = await this.profileRepository.findOne({ where: { user: { id: userId } } });
+    if (!userProfile) {
+      throw new HttpException('User profile tidak ditemukan', HttpStatus.NOT_FOUND);
+    }
+
+    userProfile.encrypt = await this.encryptionService.encrypt(changePasswordDto.newPassword);
+  
+    await this.usersRepository.save(user);
+    await this.profileRepository.save(userProfile);
+  }
+  
 
   async validateUser(email: string, password: string): Promise<Users> {
     const user = await this.usersRepository.findOne({ where: { email } });
