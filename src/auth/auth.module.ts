@@ -15,7 +15,7 @@ import { EncryptionService } from 'src/common/encryption/encryption.service';
     TypeOrmModule.forFeature([Users, UserRole, ProfileUser]),
     JwtModule.register({
       secret: Buffer.from('eW91ci0yNTYtYml0LXNlY3JldA==', 'base64').toString('ascii'), //TOOD: Change this secret key
-      signOptions: { expiresIn: '1h' },
+      signOptions: { expiresIn: '6d' },
     }),
   ],
   providers: [AuthService, JwtStrategy, EmailService, EncryptionService],

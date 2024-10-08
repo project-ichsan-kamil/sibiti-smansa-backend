@@ -39,20 +39,20 @@ export class AuthService {
 
     if (!user) {
       this.logger.error(`[login] User with email ${email} not found`);
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      throw new HttpException('Email belum terdaftar', HttpStatus.NOT_FOUND);
     }
 
     // Validate user password
     const isValidUser = await this.validateUser(email, password);
     if (!isValidUser) {
       this.logger.error(`[login] Invalid password for email: ${email}`);
-      throw new HttpException('Invalid password', HttpStatus.UNAUTHORIZED);
+      throw new HttpException('Password salah', HttpStatus.UNAUTHORIZED);
     }
 
     // Check if the account is verified
     if (!user.isVerified) {
       this.logger.error(`[login] Account with email ${email} is not verified`);
-      throw new HttpException('Account not verified', HttpStatus.FORBIDDEN);
+      throw new HttpException('Akun belum terverifikasi', HttpStatus.FORBIDDEN);
     }
 
     // Ambil role, jika tidak ada set default ke SISWA
