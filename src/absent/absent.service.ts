@@ -219,5 +219,44 @@ export class AbsentService {
     return result;
   }
 
+  async getAbsentsUserByMonthAndYear(currentUser: any, month: number, year: number): Promise<any[]> {
+    const executor = `[${currentUser.fullName}] [getAbsentsByMonthAndYear]`;
+    this.logger.log(`${executor} Fetching absences for User ID: ${currentUser.id} for month: ${month}, year: ${year}`);
 
+    // Set start and end date for the given month and year
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+
+    // Menggunakan QueryBuilder untuk membuat query SQL secara manual
+    const query = `
+    SELECT date, status, longitude, latitude, notes, urlFile AS "urlFile"
+    FROM absent
+    WHERE userId = ? 
+    AND date BETWEEN ? AND ?
+    AND statusData = true
+  `;
+
+    // Eksekusi query SQL
+    const absences = await this.absentRepository.query(query, [currentUser.id, startDate, endDate]);
+
+    if (!absences.length) {
+      this.logger.warn(`${executor} No absences found for the specified criteria.`);
+      return [];
+    }
+
+    // Mapping the result to include only the necessary fields
+    const result = absences.map((absent) => ({
+      date: absent.date,
+      status: absent.status,
+      longitude: absent.longitude,
+      latitude: absent.latitude,
+      notes: absent.notes,
+      urlFile: absent.urlFile,
+    }));
+
+    this.logger.log(`${executor} Successfully fetched ${result.length} absences,`);
+    return result;
+}
+
+  
 }

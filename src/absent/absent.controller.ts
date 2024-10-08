@@ -44,7 +44,7 @@ export class AbsentController {
       },
     }),
   }))
-  @Roles(UserRoleEnum.ADMIN, UserRoleEnum.GURU, UserRoleEnum.SISWA)
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU, UserRoleEnum.SISWA)
   @UsePipes(ValidationPipe)
   async create(@Body() createAbsentDto: CreateAbsentDto, @UploadedFile() file: Express.Multer.File, @Req() req: any) {
     const currentUser = req.user; 
@@ -97,6 +97,22 @@ export class AbsentController {
     const currentUser = req.user; 
     const result = await this.absentService.checkToday(currentUser);
 
+    return {
+      statusCode: 200,
+      message: 'Absences retrieved successfully',
+      data: result,
+    };
+  }
+
+  @Get('monthly')
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU, UserRoleEnum.SISWA)
+  async getAbsentsByMonthAndYear(
+    @Query('month') month: number,
+    @Query('year') year: number,
+    @Req() req : any,
+  ) {
+    const currentUser = req.user; 
+    const result =  await this.absentService.getAbsentsUserByMonthAndYear(currentUser, month, year);
     return {
       statusCode: 200,
       message: 'Absences retrieved successfully',
