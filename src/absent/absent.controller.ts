@@ -12,6 +12,7 @@ import {
   UploadedFile,
   HttpException,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { AbsentService } from './absent.service';
 import { CreateAbsentDto } from './dto/create-absent.dto';
@@ -26,6 +27,7 @@ import * as path from 'path';
 
 import { S3Service } from 'src/s3/s3.service';
 import { StatusAbsent } from './enum/absent.enum';
+import moment from 'moment';
 
 @Controller('absents')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -113,6 +115,37 @@ export class AbsentController {
   ) {
     const currentUser = req.user; 
     const result =  await this.absentService.getAbsentsUserByMonthAndYear(currentUser, month, year);
+    return {
+      statusCode: 200,
+      message: 'Absences retrieved successfully',
+      data: result,
+    };
+  }
+
+  @Get('by-date')
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
+  async getAbsentsByDate(
+    @Query('date') date: string,
+    @Req() req: any,
+  ): Promise<any> {
+    const currentUser = req.user;
+
+    console.log(date);
+    
+    if (!date) {
+      throw new BadRequestException('Date parameter is required');
+    }
+
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate.getTime())) {
+      throw new BadRequestException('Invalid date format. Expected format: YYYY-MM-DD');
+    }
+  
+    const startDate = new Date(parsedDate.setHours(0, 0, 0, 0));
+    const endDate = new Date(parsedDate.setHours(23, 59, 59, 999));
+    // Call the service and pass the date range and ensure we filter by the role "guru"
+    const result = await this.absentService.getAbsentsByDateForTeachers(currentUser, startDate, endDate);
+
     return {
       statusCode: 200,
       message: 'Absences retrieved successfully',

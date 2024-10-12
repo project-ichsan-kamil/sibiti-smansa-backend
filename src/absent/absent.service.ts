@@ -12,6 +12,8 @@ import { Users } from 'src/users/entities/user.entity';
 import * as moment from 'moment-timezone';
 import { log } from 'console';
 import { StatusAbsent } from './enum/absent.enum';
+import { UserRole } from 'src/user-role/entities/user-role.entity';
+import { UserRoleEnum } from 'src/user-role/enum/user-role.enum';
 
 @Injectable()
 export class AbsentService {
@@ -257,6 +259,58 @@ export class AbsentService {
     this.logger.log(`${executor} Successfully fetched ${result.length} absences,`);
     return result;
 }
-
   
+
+async getAbsentsByDateForTeachers(currentUser: any, startDate: Date, endDate: Date): Promise<any[]> {
+  const executor = `[${currentUser.fullName}] [getAbsentsByDateForTeachers]`;
+
+  const query = `
+    SELECT
+      a.id AS "absentId",
+      a.date AS "date",
+      a.latitude AS "latitude",
+      a.longitude AS "longitude",
+      a.status AS "status",
+      a.notes AS "notes",
+      a.urlFile AS "urlFile",
+      p.fullName AS "fullName",
+      s.id AS "subjectId",
+      s.name AS "subjectName"
+    FROM
+      absent a
+    LEFT JOIN user_role ur ON ur.userId = a.userId
+    LEFT JOIN profile_user p ON p.userId = a.userId
+    LEFT JOIN subject s ON ur.subjectId = s.id
+    WHERE
+      ur.role = ?
+      AND ur.statusData = true
+      AND a.date BETWEEN ? AND ?
+      AND a.statusData = true
+  `;
+
+  // Menjalankan query SQL dengan parameter
+  const absences = await this.absentRepository.query(query, [UserRoleEnum.GURU, startDate, endDate]);
+
+  if (!absences.length) {
+    this.logger.warn(`${executor} No absences found for users with role "guru" in the specified date range.`);
+  }
+
+  // Mapping hasil query untuk menampilkan hasil yang lebih rapi
+  const result = absences.map((absent) => ({
+    id: absent.absentId,
+    date: absent.date,
+    status: absent.status,
+    longitude: absent.longitude,
+    latitude: absent.latitude,
+    notes: absent.notes,
+    urlFile: absent.urlFile,
+    fullName: absent.fullName,
+    subject: absent.subjectName,
+  }));
+
+  this.logger.log(`${executor} Successfully fetched ${result.length} absences`);
+  return result;
+}
+
+
 }

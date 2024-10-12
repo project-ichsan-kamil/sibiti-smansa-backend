@@ -9,6 +9,7 @@ import {
   Patch,
   Query,
   Get,
+  Delete
 } from '@nestjs/common';
 import { ExamService } from './exam.service';
 import { CreateQuizDailyExamDto } from './dto/create-quiz-daily-exam.dto';
@@ -139,4 +140,15 @@ export class ExamController {
         data: examData,
       };
   }
+
+  @Delete()
+  @Roles(UserRoleEnum.GURU, UserRoleEnum.ADMIN, UserRoleEnum.SUPER_ADMIN)
+  async deleteExam(@Query('id') id: number, @Req() req: any): Promise<any> {
+  const currentUser = req.user; 
+  await this.examService.deleteExamById(id, currentUser);
+  return {
+    statusCode: HttpStatus.OK,
+    message: 'Data ujian berhasil dihapus',
+  };
+}
 }

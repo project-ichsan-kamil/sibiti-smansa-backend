@@ -1,4 +1,4 @@
-import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Not, Repository } from 'typeorm';
 import { Exam } from './entities/exam.entity';
@@ -12,6 +12,7 @@ import { CreateUasUtsDto } from './dto/create-uas-uts-exam.dto';
 import { UserRole } from 'src/user-role/entities/user-role.entity';
 import { Question } from 'src/question/entities/question.entity';
 import { BaseEditExamDto } from './dto/base-edit-exam.dto';
+import { ParticipantExam } from 'src/participant-exam/entities/participant-exam.entity';
 
 @Injectable()
 export class ExamService {
@@ -24,7 +25,7 @@ export class ExamService {
     @InjectRepository(Question)
     private readonly questionRepository: Repository<Question>,
     private readonly participantExamService: ParticipantExamService,
-    private dataSource: DataSource
+    private dataSource: DataSource,
   ) {}
 
   async createExamQuisAndUH(
@@ -475,7 +476,9 @@ export class ExamService {
         query = query.andWhere('exam.name LIKE :name', { name: `%${name}%` }); // Gunakan LIKE untuk pencarian parsial
       }
   
-      query = query.orderBy('exam.updatedAt', 'DESC');
+      query = query
+      .orderBy(`CASE WHEN exam.statusExam = 'PUBLISH' THEN 1 ELSE 2 END`, 'ASC')
+      .addOrderBy('exam.updatedAt', 'DESC');
 
       const examList = await query.getMany();   
 
@@ -846,5 +849,70 @@ export class ExamService {
       );
     }
   }
+
+  async deleteExamById(examId: number, currentUser: any): Promise<void> {
+    const executor = `${currentUser.fullName} [deleteExamById]`;
+    // Create a query runner from the exam repository's manager connection
+    const queryRunner = this.examRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    console.log(examId);
+    
+  
+    try {
+      this.logger.log(`${executor} Attempting to delete exam with ID: ${examId}`);
+  
+      // Fetch the exam by ID using the query runner
+      const exam = await queryRunner.manager.findOne(Exam, {
+        where: { id: examId },
+        relations: ['owner'], // Load the 'owner' relation
+    });
+
+  
+      // Check if exam exists
+      if (!exam) {
+        this.logger.error(`${executor} Exam with ID ${examId} not found`);
+        throw new NotFoundException(`Exam with ID ${examId} not found`);
+      }
+  
+      // Check if the currentUser is the owner or has the correct roles
+      console.log(exam.owner);
+      
+      const isOwner = exam.owner.id === currentUser.id;
+      const hasAdminRole = currentUser.roles.includes(UserRoleEnum.ADMIN) || currentUser.roles.includes(UserRoleEnum.SUPER_ADMIN);
+  
+      if (!isOwner && !hasAdminRole) {
+        this.logger.error(`${executor} User does not have permission to delete this exam`);
+        throw new BadRequestException('You do not have permission to delete this exam');
+      }
+  
+      // Check if the exam status is 'waiting_submitter'
+      if (exam.statusExam !== StatusExam.WAITING_SUBMITTER) {
+        this.logger.error(`${executor} Exam with ID ${examId} has status '${exam.statusExam}', cannot delete`);
+        throw new BadRequestException('Ujian hanya dapat dihapus jika statusnya adalah WAITING SUBMITTER');
+
+      }
+  
+      // Perform soft delete operations
+      await queryRunner.manager.update(ParticipantExam, { exam: { id: exam.id } }, { statusData: false });
+      await queryRunner.manager.update(Question, { exam: { id: exam.id } }, { statusData: false });
+      await queryRunner.manager.update(Exam, { id: examId }, { statusData: false });
+        
+      // Commit transaction
+      await queryRunner.commitTransaction();
+      this.logger.log(`${executor} Successfully deleted exam with ID: ${examId}`);
+    } catch (error) {
+      // Rollback transaction
+      await queryRunner.rollbackTransaction();
+      this.logger.error(`${executor} Failed to delete exam with ID: ${examId}`, error.stack);
+      throw error;
+    } finally {
+      // Release query runner
+      await queryRunner.release();
+      this.logger.log(`${executor} Query runner released for exam ID: ${examId}`);
+    }
+  }
+  
   
 }
