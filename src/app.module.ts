@@ -3,10 +3,20 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from './users/users.module';
 import { ProfileUserModule } from './profile-user/profile-user.module';
-import { AuthModule } from './auth/auth.module';
-import { User } from './users/entities/user.entity';
-import { ProfileUser } from './profile-user/entities/profile-user.entity';
 import { DataSource } from 'typeorm';
+import { ClassModule } from './class/class.module';
+import { ExamModule } from './exam/exam.module';
+import { AuthModule } from './auth/auth.module';
+import { UserRoleModule } from './user-role/user-role.module';
+import { EncryptionService } from './common/encryption/encryption.service';
+import { SubjectModule } from './subject/subject.module';
+import { SeederModule } from './seeder/seeder.module';
+import { ExcelModule } from './excel/excel.module';
+import { ParticipantExamModule } from './participant-exam/participant-exam.module';
+import { QuestionModule } from './question/question.module';
+import { ParticipantAnswerModule } from './participant-answer/participant-answer.module';
+import { AbsentModule } from './absent/absent.module';
+import { S3Module } from './s3/s3.module';
 
 @Module({
   imports: [
@@ -16,8 +26,8 @@ import { DataSource } from 'typeorm';
       port: 3306,
       username: 'root',
       password: 'root',
-      database: 'fotoin',
-      entities: [User, ProfileUser],
+      database: 'sibiti',
+      entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true,
     }),
     JwtModule.register({
@@ -27,10 +37,21 @@ import { DataSource } from 'typeorm';
     }),
     UsersModule,
     ProfileUserModule,
+    ClassModule,
+    ExamModule,
     AuthModule,
+    UserRoleModule,
+    SubjectModule,
+    SeederModule,
+    ExcelModule,
+    ParticipantExamModule,
+    QuestionModule,
+    ParticipantAnswerModule,
+    AbsentModule,
+    S3Module,
   ],
   controllers: [],
-  providers: [],
+  providers: [EncryptionService],
 })
 export class AppModule {
   constructor(private dataSource: DataSource) {}

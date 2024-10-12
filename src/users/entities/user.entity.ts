@@ -1,42 +1,60 @@
-import { Column, Entity, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, BeforeInsert } from "typeorm";
-import * as bcrypt from 'bcrypt';
+import { ProfileUser } from 'src/profile-user/entities/profile-user.entity';
+import { UserRole } from 'src/user-role/entities/user-role.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, BeforeInsert, OneToOne, OneToMany, ManyToMany, JoinTable } from 'typeorm';
+import { UserClass } from 'src/class/entities/user-class.entity';
+import { Exam } from 'src/exam/entities/exam.entity';
+import { ParticipantExam } from 'src/participant-exam/entities/participant-exam.entity';
 
 @Entity()
-export class User {
-    @PrimaryGeneratedColumn({type : "bigint"})
+export class Users {
+    @PrimaryGeneratedColumn({ type: 'bigint' })
     id: number;
 
-    @Column({length : 255})
-    username : string;
+    @Column()
+    email: string;
 
-    @Column({length : 255})
-    email : string;
+    @Column()
+    password: string;
 
-    @Column({length : 255})
-    password : string;
+    @Column({ default: false })
+    isVerified: boolean;
 
-    @Column({default : false})
-    isVerified : boolean;
+    @Column({ default: true })
+    statusData: boolean;
 
-    @CreateDateColumn({ type: 'timestamp'})
+    //relation
+
+    @OneToOne(() => ProfileUser, profile => profile.user)
+    profile: ProfileUser;
+
+    @OneToMany(() => UserRole, userRole => userRole.user)
+    userRoles: UserRole[];
+
+    @OneToMany(() => UserClass, userClass => userClass.user)
+    userClasses: UserClass[];
+
+    @OneToMany(() => Exam, exam => exam.owner)
+    examsOwned: Exam[];
+
+    @OneToMany(() => ParticipantExam, participantExam => participantExam.user)
+    participantExams: ParticipantExam[];
+
+
+    // audit fields
+    @CreateDateColumn({ type: 'timestamp' })
     createdAt: Date;
 
-    @Column({default : "SYSTEM"})
-    createdBy : string;
+    @Column({ default: "SYSTEM" })
+    createdBy: string;
 
-    @UpdateDateColumn({ type: 'timestamp'})
+    @UpdateDateColumn({ type: 'timestamp' })
     updatedAt: Date;
 
-    @Column({default : "SYSTEM"})
-    updatedBy : string;
+    @Column({ default: "SYSTEM" })
+    updatedBy: string;
 
     @BeforeInsert()
     generateProfileId() {
         this.id = new Date().valueOf();
-    }
-
-    @BeforeInsert()
-    async hashPassword() {
-        this.password = await bcrypt.hash(this.password, 10)
     }
 }

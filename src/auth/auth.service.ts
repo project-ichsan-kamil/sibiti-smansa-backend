@@ -1,252 +1,142 @@
-const jwt = require('jsonwebtoken');
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { UnauthorizedException } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
+import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
+import { Users } from 'src/users/entities/user.entity';
+import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcrypt';
+import { UserRole } from 'src/user-role/entities/user-role.entity';
+import { UserRoleEnum } from 'src/user-role/enum/user-role.enum';
+import { EmailService } from 'src/common/email/email.service';
+import { ChangePasswordDto } from './dto/changePassword.dto';
+import { ProfileUser } from 'src/profile-user/entities/profile-user.entity';
+import { EncryptionService } from 'src/common/encryption/encryption.service';
 
 @Injectable()
 export class AuthService {
-    constructor(
-        @InjectRepository(User)
-        private readonly usersRepository: Repository<User>,
-    ){}
+  private readonly logger = new Logger(AuthService.name);
 
-    //feature verification user
-    async getStatusUser(token : string){
-        try {
-            const decodedToken = await this.verifyJwtToken(token); 
+  constructor(
+    @InjectRepository(Users)
+    private readonly usersRepository: Repository<Users>,
+    @InjectRepository(ProfileUser)
+    private readonly profileRepository: Repository<ProfileUser>,
+    private readonly jwtService: JwtService,
+    private readonly emailService: EmailService,
+    private readonly encryptionService: EncryptionService,
+  ) {}
 
-            const user = await this.findUserById(decodedToken.userId)
+  async login(loginDto: LoginDto): Promise<{ token: string }> {
+    this.logger.log('[login] Start Login');
 
-            return {
-                token,
-                isVerified : user.isVerified
-            }
-        } catch (error) { 
-            throw error  
-        }
+    const { email, password } = loginDto;
+
+    // Cari pengguna berdasarkan email, termasuk relasi dengan profil dan peran
+    const user = await this.usersRepository.findOne({
+      where: { email },
+      relations: ['profile', 'userRoles'],
+    });
+
+    if (!user) {
+      this.logger.error(`[login] User with email ${email} not found`);
+      throw new HttpException('Email belum terdaftar', HttpStatus.NOT_FOUND);
     }
 
-    async verifyUser(token : string){
-         try {
-            const decodedToken = await this.verifyJwtToken(token);
-            
-            // Retrieve user by userId
-            const user = await this.findUserById(decodedToken.userId);
-
-            // Check if the user is already verified
-            if (user.isVerified) {
-                throw new HttpException('User is already verified', HttpStatus.BAD_REQUEST);
-            }
-
-            // Update user's isVerified status to true
-            user.isVerified = true;
-            await this.usersRepository.save(user);
-
-            return { message : "User verified successfully"}
-        } catch (error) {
-            if (error instanceof UnauthorizedException) {
-                return { error: 'Invalid token' };
-            }
-            throw error;
-        }
+    // Validate user password
+    const isValidUser = await this.validateUser(email, password);
+    if (!isValidUser) {
+      this.logger.error(`[login] Invalid password for email: ${email}`);
+      throw new HttpException('Password salah', HttpStatus.UNAUTHORIZED);
     }
 
-
-    //feature login
-    async login(email: string, password: string): Promise<any> {
-        try {
-            // Retrieve user by username            
-            const user = await this.findUserByEmail(email);
-
-            // Check if password is correct
-            const isPasswordValid = await this.validatePassword(user, password);
-            if (!isPasswordValid) {
-                throw new HttpException({
-                    errorField: true,
-                    nameField: 'password',
-                    errorAllert: false,
-                    message: 'Invalid password',
-                  }, HttpStatus.UNAUTHORIZED);
-            }
-
-            // Check if the user is verified
-            if (!user.isVerified) {
-                throw new HttpException('User is not verified', HttpStatus.UNAUTHORIZED);
-            }
-
-            // Generate and return JWT token
-            const token = await this.generateToken(user.id.toString());
-            return { 
-                token: token, 
-                email : user.email,
-                username : user.username,
-                role : user.role
-            };
-        } catch (error) {
-            throw error;
-        }
+    // Check if the account is verified
+    if (!user.isVerified) {
+      this.logger.error(`[login] Account with email ${email} is not verified`);
+      throw new HttpException('Akun belum terverifikasi', HttpStatus.FORBIDDEN);
     }
 
-    async validatePassword(user: User, password: string): Promise<boolean> {
-        return await bcrypt.compare(password, user.password);
+    // Ambil role, jika tidak ada set default ke SISWA
+    const activeRoles =
+      user.userRoles.length > 0
+        ? user.userRoles
+            .filter((role) => role.statusData === true) // Memfilter role yang aktif
+            .map((role) => role.role)
+        : [UserRoleEnum.SISWA];
+
+    // Buat payload untuk JWT token
+    const payload = {
+      id: user.id,
+      email: user.email,
+      fullName: user.profile?.fullName,
+      roles: activeRoles,
+    };
+
+    // Generate token JWT
+    const token = this.jwtService.sign(payload);
+
+    this.logger.log(
+      `[login] Successfully logged in: ${user.profile?.fullName}, email: ${user.email}`,
+    );
+
+    return { token };
+  }
+
+  async sendResetPasswordEmail(email: string): Promise<void> {
+    const user = await this.usersRepository.findOne({ where: { email } });
+    if (!user) {
+      throw new HttpException('Email tidak terdaftar', HttpStatus.NOT_FOUND);
     }
 
-
+    // Generate JWT token
+    const token = this.jwtService.sign({ id: user.id });
     
+    // Kirim email dengan link reset password
+    const resetLink = `http://yourdomain.com/change-password/${token}`;
+    await this.emailService.sendPassword(email, resetLink);
+  }
 
-    //feature forgot password
-    async forgotPassword(email : string){
-        try {
-            const user = await this.findUserByEmail(email)
-            
-            if (!user) {
-                throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-            }
-
-            const token = await this.generateToken(user.id.toString())
-
-            await this.sendEmailForgotPassword(user.email, token);
-
-            return {message : 'Email forgot password send successfully'}
-        } catch (error) {
-            console.log("Error forgot password");
-            throw error;
-        }
-    }
-
-
-
-
-    //feature change password
-    async changePassword(token : string, newPassword : string){
-        try {
-            const decodedToken = await this.verifyJwtToken(token);
-
-            const user = await this.findUserById(decodedToken.userId);
-
-            user.password = await bcrypt.hash(newPassword, 10);
-
-            await this.usersRepository.save(user);
-
-            return {email : user.email , message : "Change Password Successfully"}
-            
-        } catch (error) {
-            console.log("Error change password");
-            throw error;
-        }
-    }
-
-
-
-    // user service
-    async findUserById(id : number){
-        try {
-            const user = await this.usersRepository.findOne({ where: { id } });
-
-            if (!user) {
-              throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-            }
-            return user;
-        } catch (error) {
-            throw error;
-        }
-    }
-
-      async findUserByEmail(email: string): Promise<User> {
-        try {
-          const user = await this.usersRepository.findOneByOrFail({ email });
-          return user;
-        } catch (error) {
-            throw new HttpException({
-                errorField: true,
-                nameField: 'email',
-                errorAllert: false,
-                message: 'User not found',
-              }, HttpStatus.NOT_FOUND);
-        }
-      }
-
-
-    //token function
-    async generateToken(userId: string) {
-        try {
-            const payload = { userId: userId};
-            const token = jwt.sign(payload, process.env.JWT_SECRECT ,{expiresIn: '24h'});
-            return token;
-        } catch (error) {
-            console.log("Error generate token : ", error);
-            throw new Error("Failed to generate token");    
-        }
-       
-    }
-
-    async verifyJwtToken(token: string){
-        try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRECT);
-            return decoded;
-        } catch (error) {
-            throw new UnauthorizedException('Invalid token');
-        }
-    }
-
-
-
-
-    //email function
-    async sendVerificationEmail(email: string, token: string): Promise<void> {
-        const subject = 'Account Verification';
-        const verificationLink =  `${process.env.BASE_URL}/verify?token=${token}`;
-        const html = `<p>Click the following link to verify your account:</p><p><a href="${verificationLink}">${verificationLink}</a></p>`; //TODO change body email
-    
-        try {
-          await this.sendEmail(email, subject, html);
-        } catch (error) {
-          console.error('Error sending verification email:', error);
-          throw new HttpException('Failed to send verification email', HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-      }
-
-      async sendEmailForgotPassword(email: string, token: string): Promise<void> {
-        const subject = 'Forgot Password';
-        const verificationLink =  `${process.env.BASE_URL}/forgot-password?token=${token}`;
-        const html = `<p>Click the following link to change your password</p><p><a href="${verificationLink}">${verificationLink}</a></p>`; //TODO change body email forgot password
-    
-        try {
-          await this.sendEmail(email, subject, html);
-        } catch (error) {
-          console.error('Error sending forgot password email:', error);
-          throw new HttpException('Failed to send forgot password email', HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-      }
+  async changePassword(token: string, changePasswordDto: ChangePasswordDto): Promise<void> {
+    let decodedToken;
+  
+    try {
+      decodedToken = this.jwtService.verify(token);
+    } catch (error) {
+      console.log(error);
       
-      public async sendEmail(to: string, subject: string, html: string): Promise<void> {
-        try {
-          const mailOptions = {
-            from: 'eurekademy@gmail.com', 
-            to,
-            subject,
-            html
-          };
-    
-          await this.transporter.sendMail(mailOptions);
-          console.log(`Email sent to ${to} successfully.`);
-        } catch (error) {
-          console.error('Error sending email:', error);
-          throw error;
-        }
-      }
+      throw new HttpException('Token tidak valid atau telah kedaluwarsa', HttpStatus.UNAUTHORIZED);
+    }
+  
+    const userId = decodedToken.id;
+  
+    const user = await this.usersRepository.findOne({ where: { id: userId, statusData: true } });
+    if (!user) {
+      throw new HttpException('User tidak ditemukan', HttpStatus.NOT_FOUND);
+    }
+  
+    // Hash password baru
+    const hashedPassword = await bcrypt.hash(changePasswordDto.newPassword, 10);
+    user.password = hashedPassword;
 
-      private transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: 'fajrulichsan0208@gmail.com',  //TODO buat email baru
-          pass: 'xoty evqi sghp uxtj' 
-        }
-    
-      });
+    const userProfile = await this.profileRepository.findOne({ where: { user: { id: userId } } });
+    if (!userProfile) {
+      throw new HttpException('User profile tidak ditemukan', HttpStatus.NOT_FOUND);
+    }
 
+    userProfile.encrypt = await this.encryptionService.encrypt(changePasswordDto.newPassword);
+  
+    await this.usersRepository.save(user);
+    await this.profileRepository.save(userProfile);
+  }
+  
+
+  async validateUser(email: string, password: string): Promise<Users> {
+    const user = await this.usersRepository.findOne({ where: { email } });
+
+    if (user && (await bcrypt.compare(password, user.password))) {
+      this.logger.log('[validateUser] Password is valid');
+      return user;
+    }
+    this.logger.error('[validateUser] Invalid password');
+    return null;
+  }
 }

@@ -1,16 +1,21 @@
 import { Module } from '@nestjs/common';
-import { UsersService } from './users.service';
+import { UserService } from './users.service';
 import { UsersController } from './users.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from './entities/user.entity';
+import { Users } from './entities/user.entity';
 import { ProfileUser } from 'src/profile-user/entities/profile-user.entity';
 import { ProfileUserService } from 'src/profile-user/profile-user.service';
-import { AuthService } from 'src/auth/auth.service';
+import { EncryptionService } from 'src/common/encryption/encryption.service';
+import { EmailService } from 'src/common/email/email.service';
+import { UserRole } from 'src/user-role/entities/user-role.entity';
+import { UserRoleService } from 'src/user-role/user-role.service';
+import { Subject } from 'rxjs';
+import { Class } from 'src/class/entities/class.entity';
 
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, ProfileUser])],
+  imports: [TypeOrmModule.forFeature([Users, ProfileUser, UserRole, Subject, Class])],
   controllers: [UsersController],
-  providers: [UsersService, ProfileUserService, AuthService],
+  providers: [UserService, ProfileUserService, EncryptionService, EmailService, UserRoleService],
 })
 export class UsersModule {}
