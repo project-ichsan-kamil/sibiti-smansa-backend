@@ -1,0 +1,133 @@
+name: CI/CD Pipeline for NestJS
+
+on:
+  push:
+    branches:
+      - production   # Trigger deploy untuk branch production
+      - prodlike     # Trigger deploy untuk branch prodlike
+  pull_request:
+    branches:
+      - production   # Trigger pada pull request untuk branch production
+      - prodlike     # Trigger pada pull request untuk branch prodlike
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Step 2: Setup Node.js (version 20)
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      # Step 3: Cache Node.js modules for faster builds
+      - name: Cache Node.js modules
+        uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      # Step 4: Install dependencies
+      - name: Install dependencies
+        run: |
+          echo "Running npm ci..."
+          npm ci || (echo "npm ci failed, falling back to npm install..." && npm install)
+
+      # Step 5: Build the NestJS project
+      - name: Build project
+        run: |
+          npm run build
+
+      # Step 6: Deploy to the correct server based on the branch
+      - name: Deploy to Server
+        run: |
+          # Get the current branch from the push or pull request
+          CURRENT_BRANCH="${{ github.ref }}"
+          echo "Current branch: $CURRENT_BRANCH"
+
+          # Determine the server, SSH key, and username based on the branch being pushed or pull request
+          if [[ "$CURRENT_BRANCH" == "refs/heads/production" || "$CURRENT_BRANCH" == "refs/pull/"* ]]; then
+            SERVER="${{ secrets.PROD_SERVER }}" # Production server IP from GitHub Secrets
+            SSH_KEY="${{ secrets.SSH_PRIVATE_KEY_PROD }}" # Production SSH key from GitHub Secrets
+            USERNAME="${{ secrets.PROD_USERNAME }}" # Production username from GitHub Secrets
+            PM2_NAME="sibiti-prod-backend"   # Updated PM2 process name for production
+          elif [[ "$CURRENT_BRANCH" == "refs/heads/prodlike" ]]; then
+            SERVER="${{ secrets.PRODLIKE_SERVER }}" # Prodlike server IP from GitHub Secrets
+            SSH_KEY="${{ secrets.SSH_PRIVATE_KEY_PRODLIKE }}" # Prodlike SSH key from GitHub Secrets
+            USERNAME="${{ secrets.PRODLIKE_USERNAME }}" # Prodlike username from GitHub Secrets
+            PM2_NAME="sibiti-prodlike-backend"   # Updated PM2 process name for prodlike
+          else
+            echo "Branch not recognized, deployment aborted."
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "$SERVER" >> ~/.ssh/known_hosts
+
+          # Transfer build files and dependencies to the server using rsync
+          rsync -avz --delete --exclude='node_modules' --exclude='.git' dist/ package.json package-lock.json $USERNAME@$SERVER:~/sibiti-smansa-backend
+
+      # Step 7: Restart PM2 on the correct server
+      - name: Restart PM2
+        run: |
+          # Get the current branch from the push or pull request
+          CURRENT_BRANCH="${{ github.ref }}"
+          echo "Current branch: $CURRENT_BRANCH"
+
+          # Determine the server, SSH key, and username based on the branch being pushed or pull request
+          if [[ "$CURRENT_BRANCH" == "refs/heads/production" || "$CURRENT_BRANCH" == "refs/pull/"* ]]; then
+            SERVER="${{ secrets.PROD_SERVER }}" # Production server IP from GitHub Secrets
+            SSH_KEY="${{ secrets.SSH_PRIVATE_KEY_PROD }}" # Production SSH key from GitHub Secrets
+            PM2_NAME="sibiti-prod-backend"  # Updated PM2 process name for production
+            USERNAME="${{ secrets.PROD_USERNAME }}" # Production username from GitHub Secrets
+          elif [[ "$CURRENT_BRANCH" == "refs/heads/prodlike" ]]; then
+            SERVER="${{ secrets.PRODLIKE_SERVER }}" # Prodlike server IP from GitHub Secrets
+            SSH_KEY="${{ secrets.SSH_PRIVATE_KEY_PRODLIKE }}" # Prodlike SSH key from GitHub Secrets
+            PM2_NAME="sibiti-prodlike-backend"   # Updated PM2 process name for prodlike
+            USERNAME="${{ secrets.PRODLIKE_USERNAME }}" # Prodlike username from GitHub Secrets
+          else
+            echo "Branch not recognized, PM2 restart aborted."
+            exit 1
+          fi
+    
+          echo "Restarting PM2 for $PM2_NAME on $SERVER with user $USERNAME"
+  
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "$SERVER" >> ~/.ssh/known_hosts
+    
+          # Restart PM2 or start the process if it's not running
+          ssh -i ~/.ssh/id_rsa $USERNAME@$SERVER '
+            cd ~/sibiti-smansa-backend;
+            
+            # Check if PM2 is installed
+            if command -v pm2 >/dev/null 2>&1; then
+              echo "PM2 detected, checking $PM2_NAME process"
+              # Check if the process is already running
+              if pm2 list | grep -q "$PM2_NAME"; then
+                echo "$PM2_NAME process found, restarting"
+                pm2 restart "$PM2_NAME";
+              else
+                echo "$PM2_NAME process not found, starting new process"
+                pm2 start npm --name "$PM2_NAME" -- run start:prod;
+              fi
+            else
+              echo "PM2 is not installed, installing PM2"
+              npm install -g pm2;
+              pm2 start npm --name "$PM2_NAME" -- run start:prod;
+            fi
+            
+            # Save PM2 configuration to automatically restart after server reboot
+            pm2 save;
+          '
