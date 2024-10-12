@@ -46,23 +46,86 @@ jobs:
           npm run build
 
       # Step 6: Deploy to the correct server based on the branch
+      # - name: Deploy to Server
+      #   run: |
+      #     # Get the current branch from the push or pull request
+      #     CURRENT_BRANCH="${{ github.ref }}"
+      #     echo "Current branch: $CURRENT_BRANCH"
+
+      #     # Determine the server, SSH key, and username based on the branch being pushed or pull request
+      #     if [[ "$CURRENT_BRANCH" == "refs/heads/production" || "$CURRENT_BRANCH" == "refs/pull/"* ]]; then
+      #       SERVER="${{ secrets.PROD_SERVER }}" # Production server IP from GitHub Secrets
+      #       SSH_KEY="${{ secrets.SSH_PRIVATE_KEY_PROD }}" # Production SSH key from GitHub Secrets
+      #       USERNAME="${{ secrets.PROD_USERNAME }}" # Production username from GitHub Secrets
+      #       PM2_NAME="sibiti-prod-backend"   # Updated PM2 process name for production
+      #     elif [[ "$CURRENT_BRANCH" == "refs/heads/prodlike" ]]; then
+      #       SERVER="${{ secrets.PRODLIKE_SERVER }}" # Prodlike server IP from GitHub Secrets
+      #       SSH_KEY="${{ secrets.SSH_PRIVATE_KEY_PRODLIKE }}" # Prodlike SSH key from GitHub Secrets
+      #       USERNAME="${{ secrets.PRODLIKE_USERNAME }}" # Prodlike username from GitHub Secrets
+      #       PM2_NAME="sibiti-prodlike-backend"   # Updated PM2 process name for prodlike
+      #     else
+      #       echo "Branch not recognized, deployment aborted."
+      #       exit 1
+      #     fi
+
+      #     mkdir -p ~/.ssh
+      #     echo "$SSH_KEY" > ~/.ssh/id_rsa
+      #     chmod 600 ~/.ssh/id_rsa
+      #     ssh-keyscan -H "$SERVER" >> ~/.ssh/known_hosts
+
+      #     # Transfer build files and dependencies to the server using rsync
+      #     rsync -avz --delete --exclude='node_modules' --exclude='.git' dist/ package.json package-lock.json $USERNAME@$SERVER:~/sibiti-smansa-backend
+
+
+       # Step 6: Deploy to the correct server based on the branch
       - name: Deploy to Server
         run: |
           # Get the current branch from the push or pull request
           CURRENT_BRANCH="${{ github.ref }}"
           echo "Current branch: $CURRENT_BRANCH"
 
-          # Determine the server, SSH key, and username based on the branch being pushed or pull request
-          if [[ "$CURRENT_BRANCH" == "refs/heads/production" || "$CURRENT_BRANCH" == "refs/pull/"* ]]; then
+          # Handle pull request events
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            # Get base and head branches from the pull request
+            PR_BASE="${{ github.event.pull_request.base.ref }}"
+            PR_HEAD="${{ github.event.pull_request.head.ref }}"
+            
+            echo "Pull request from branch: $PR_HEAD to branch: $PR_BASE"
+
+            # Handle pull request from 'development' to 'prodlike'
+            if [[ "$PR_BASE" == "prodlike" && "$PR_HEAD" == "development" ]]; then
+              echo "Pull request from development to prodlike detected. Deploying to prodlike environment..."
+              SERVER="${{ secrets.PRODLIKE_SERVER }}" # Prodlike server IP from GitHub Secrets
+              SSH_KEY="${{ secrets.SSH_PRIVATE_KEY_PRODLIKE }}" # Prodlike SSH key from GitHub Secrets
+              USERNAME="${{ secrets.PRODLIKE_USERNAME }}" # Prodlike username from GitHub Secrets
+              PM2_NAME="sibiti-prodlike-backend"   # PM2 process name for prodlike
+
+            # Handle pull request from 'prodlike' to 'production'
+            elif [[ "$PR_BASE" == "production" && "$PR_HEAD" == "prodlike" ]]; then
+              echo "Pull request from prodlike to production detected. Deploying to production environment..."
+              SERVER="${{ secrets.PROD_SERVER }}" # Production server IP from GitHub Secrets
+              SSH_KEY="${{ secrets.SSH_PRIVATE_KEY_PROD }}" # Production SSH key from GitHub Secrets
+              USERNAME="${{ secrets.PROD_USERNAME }}" # Production username from GitHub Secrets
+              PM2_NAME="sibiti-prod-backend"   # PM2 process name for production
+
+            else
+              echo "This pull request is not from development to prodlike or from prodlike to production. No deployment will occur."
+              exit 0
+            fi
+
+          # Handle direct pushes to branches
+          elif [[ "$CURRENT_BRANCH" == "refs/heads/production" ]]; then
             SERVER="${{ secrets.PROD_SERVER }}" # Production server IP from GitHub Secrets
             SSH_KEY="${{ secrets.SSH_PRIVATE_KEY_PROD }}" # Production SSH key from GitHub Secrets
             USERNAME="${{ secrets.PROD_USERNAME }}" # Production username from GitHub Secrets
-            PM2_NAME="sibiti-prod-backend"   # Updated PM2 process name for production
+            PM2_NAME="sibiti-prod-backend"   # PM2 process name for production
+
           elif [[ "$CURRENT_BRANCH" == "refs/heads/prodlike" ]]; then
             SERVER="${{ secrets.PRODLIKE_SERVER }}" # Prodlike server IP from GitHub Secrets
             SSH_KEY="${{ secrets.SSH_PRIVATE_KEY_PRODLIKE }}" # Prodlike SSH key from GitHub Secrets
             USERNAME="${{ secrets.PRODLIKE_USERNAME }}" # Prodlike username from GitHub Secrets
-            PM2_NAME="sibiti-prodlike-backend"   # Updated PM2 process name for prodlike
+            PM2_NAME="sibiti-prodlike-backend"   # PM2 process name for prodlike
+
           else
             echo "Branch not recognized, deployment aborted."
             exit 1
