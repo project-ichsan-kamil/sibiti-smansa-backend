@@ -85,8 +85,7 @@ export class UserService {
           userClassAssociation.classEntity = classEntity;
           userClassAssociation.statusData = true;
           userClassAssociation.createdBy = currentUser.fullName;
-          userClassAssociation.updatedBy = currentUser.fullName;
-    
+          userClassAssociation.updatedBy = currentUser.fullName;          
           await queryRunner.manager.save(userClassAssociation);
         }
     
@@ -110,51 +109,57 @@ export class UserService {
   async verifyUsers(verifyUserIds: number[], currentUser: any): Promise<any[]> {
     const executor = `[${currentUser.fullName}] [verifyUsers]`;
     this.logger.log(`${executor} Verifying users with IDs: ${verifyUserIds.join(', ')}`);
-  
-    // Memeriksa apakah pengguna saat ini adalah super admin menggunakan fungsi checkIfSuperAdmin
-    await this.checkIfSuperAdmin(currentUser);
-  
-    const verifiedUsers = [];
-    const emailSendPromises = [];
-  
-    for (const verifyUserId of verifyUserIds) {
-      const user = await this.usersRepository.findOne({
-        where: { id: verifyUserId },
-        relations: ['profile'],
-      });
-  
-      if (!user) {
-        this.logger.error(`${executor} User with ID ${verifyUserId} not found`);
-        throw new HttpException(`User dengan ID ${verifyUserId} tidak ditemukan`, HttpStatus.NOT_FOUND);
-      }
-  
-      user.updatedBy = currentUser.fullName;
-      user.isVerified = true;
-  
-      await this.usersRepository.save(user);
-  
-      const passwordEncrypted = this.encryptionService.decrypt(user.profile.encrypt);
+
+
+    try{
+        await this.checkIfSuperAdmin(currentUser);
       
-      // Simpan promise pengiriman email
-      emailSendPromises.push(
-        this.emailService.sendPassword(user.email, passwordEncrypted)
-          .then(() => {
-            this.logger.log(`${executor} Email sent successfully to user with ID ${verifyUserId}`);
-          })
-          .catch(error => {
-            this.logger.error(`${executor} Failed to send email to user with ID ${verifyUserId}: ${error.message}`);
-          })
-      );
-  
-      this.logger.log(`${executor} User with ID ${verifyUserId} verified successfully`);
-      verifiedUsers.push(user);
+        const verifiedUsers = [];
+        const emailSendPromises = [];
+      
+        for (const verifyUserId of verifyUserIds) {
+          const user = await this.usersRepository.findOne({
+            where: { id: verifyUserId },
+            relations: ['profile'],
+          });
+      
+          if (!user) {
+            this.logger.error(`${executor} User with ID ${verifyUserId} not found`);
+            throw new HttpException(`User dengan ID ${verifyUserId} tidak ditemukan`, HttpStatus.NOT_FOUND);
+          }
+      
+          user.updatedBy = currentUser.fullName;
+          user.isVerified = true;
+      
+          await this.usersRepository.save(user);
+      
+          const passwordEncrypted = this.encryptionService.decrypt(user.profile.encrypt);
+          
+          // Simpan promise pengiriman email
+          emailSendPromises.push(
+            this.emailService.sendPassword(user.email, passwordEncrypted)
+              .then(() => {
+                this.logger.log(`${executor} Email sent successfully to user with ID ${verifyUserId}`);
+              })
+              .catch(error => {
+                this.logger.error(`${executor} Failed to send email to user with ID ${verifyUserId}: ${error.message}`);
+              })
+          );
+      
+          this.logger.log(`${executor} User with ID ${verifyUserId} verified successfully`);
+          verifiedUsers.push(user);
+        }
+      
+        // Tunggu semua email terkirim
+        await Promise.all(emailSendPromises);
+      
+        this.logger.log(`${executor} Verification completed for users with IDs: ${verifyUserIds.join(', ')}`);
+        return verifiedUsers;
+
+    } catch(error){
+        this.logger.error(`${executor} Error during user verification process`, error.stack);
+        throw new HttpException('Failed to verify users', HttpStatus.INTERNAL_SERVER_ERROR);
     }
-  
-    // Tunggu semua email terkirim
-    await Promise.all(emailSendPromises);
-  
-    this.logger.log(`${executor} Verification completed for users with IDs: ${verifyUserIds.join(', ')}`);
-    return verifiedUsers;
 }
   
 
@@ -196,44 +201,50 @@ export class UserService {
 
     await this.checkIfSuperAdmin(currentUser);
 
-    const unverifiedUsersRaw = await this.usersRepository
-        .createQueryBuilder('user')
-        .leftJoinAndSelect('user.profile', 'profile')
-        .leftJoinAndSelect('user.userClasses', 'userClass')
-        .leftJoinAndSelect('userClass.classEntity', 'classEntity')
-        .where('user.isVerified = :isVerified', { isVerified: false })
-        .andWhere('user.statusData = :statusData', { statusData: true })
-        .select([
-            'user.id as id',
-            'user.email as email',
-            'profile.encrypt as encrypt',
-            'profile.fullName as fullName',
-            'profile.noHp as noHp',
-            'classEntity.name as className',
-        ])
-        .orderBy('GREATEST(user.updatedAt, profile.updatedAt)', 'DESC')
-        .getRawMany();
+    try {
+        const unverifiedUsersRaw = await this.usersRepository
+            .createQueryBuilder('user')
+            .leftJoinAndSelect('user.profile', 'profile')
+            .leftJoinAndSelect('user.userClasses', 'userClass')
+            .leftJoinAndSelect('userClass.classEntity', 'classEntity')
+            .where('user.isVerified = :isVerified', { isVerified: false })
+            .andWhere('user.statusData = :statusData', { statusData: true })
+            .select([
+                'user.id as id',
+                'user.email as email',
+                'profile.encrypt as encrypt',
+                'profile.fullName as fullName',
+                'profile.noHp as noHp',
+                'classEntity.name as className',
+            ])
+            .orderBy('GREATEST(user.updatedAt, profile.updatedAt)', 'DESC')
+            .getRawMany();
 
-    const unverifiedUsers = unverifiedUsersRaw.map(user => {
-        if (user.encrypt) {
-            const decryptedData = this.encryptionService.decrypt(user.encrypt);
-            user.encrypt = decryptedData;
-        }
+        const unverifiedUsers = unverifiedUsersRaw.map(user => {
+            if (user.encrypt) {
+                const decryptedData = this.encryptionService.decrypt(user.encrypt);
+                user.encrypt = decryptedData;
+            }
 
-        return {
-            id: user.id,
-            email: user.email,
-            profile: {
-                fullName: user.fullName,
-                noHp: user.noHp,
-                encrypt: user.encrypt
-            },
-            class: user.className ? { name: user.className } : null
-        };
-    });
+            return {
+                id: user.id,
+                email: user.email,
+                profile: {
+                    fullName: user.fullName,
+                    noHp: user.noHp,
+                    encrypt: user.encrypt
+                },
+                class: user.className ? { name: user.className } : null
+            };
+        });
 
-    this.logger.log(`${executor} Retrieved ${unverifiedUsers.length} unverified users`);
-    return unverifiedUsers;
+        this.logger.log(`${executor} Retrieved ${unverifiedUsers.length} unverified users`);
+        return unverifiedUsers;
+
+    } catch (error) {
+        this.logger.error(`${executor} Error occurred: ${error.message}`, error.stack);
+        throw new Error('Failed to retrieve unverified users');
+    }
 }
  
   async getVerifiedUsers(currentUser: any): Promise<any[]> {
