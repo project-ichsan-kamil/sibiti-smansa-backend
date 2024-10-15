@@ -24,7 +24,7 @@ export class UserRoleService {
     subjectId: number | null,
     currentUser: any,
   ): Promise<UserRole> {
-    const executor = `[${currentUser.fullName}][createRole]`;
+    const executor = `[${currentUser.fullName}] [createRole]`;
     this.logger.log(`${executor} Starting role creation`);
 
     // Cek apakah sudah ada Super Admin yang terdaftar
@@ -181,7 +181,7 @@ export class UserRoleService {
   
 
   async getListUserByFullNameAndRole(fullName: string, role: UserRoleEnum, currentUser: any): Promise<any[]> {
-    const executor = `[${currentUser.fullName}][getListUserByFullNameAndRole]`;
+    const executor = `[${currentUser.fullName}] [getListUserByFullNameAndRole]`;
     this.logger.log(`${executor} Fetching list of users with role: ${role} by full name: ${fullName}`);
 
     // Cari pengguna dengan nama (LIKE) di ProfileUser, peran yang diberikan, statusData true, dan isVerified true
@@ -209,7 +209,7 @@ export class UserRoleService {
   }
 
   async deactivateGuruRole(roleId: number, currentUser: any): Promise<void> {
-    const executor = `[${currentUser.fullName}][deactivateGuruRole]`;
+    const executor = `[${currentUser.fullName}] [deactivateGuruRole]`;
     this.logger.log(`${executor} Attempting to deactivate Guru role with ID: ${roleId}`);
 
     // Fetch the role to be deactivated
@@ -230,7 +230,7 @@ export class UserRoleService {
   }
 
   async deactivateAdminRole(roleId: number, currentUser: any): Promise<void> {
-    const executor = `[${currentUser.fullName}][deactivateAdminRole]`;
+    const executor = `[${currentUser.fullName}] [deactivateAdminRole]`;
     this.logger.log(`${executor} Attempting to deactivate Admin role with ID: ${roleId}`);
 
     // Fetch the role to be deactivated

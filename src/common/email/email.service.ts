@@ -59,10 +59,23 @@ export class EmailService {
 
 
   public async resetPassword(email: string, resetLink: string): Promise<void> {
-    const subject = 'Reset Password';
-    const html = `<p>Untuk mengatur ulang password Anda, silakan klik tautan berikut: <a href="${resetLink}">Reset Password</a></p>`;
+    const subject = 'Permintaan Reset Password';
+    const html = `
+        <p>Pengguna Yang Terhormat,</p>
+        <p>Kami menerima permintaan untuk mengatur ulang password Anda. Untuk melanjutkan, silakan klik tautan di bawah ini:</p>
+        <p><a href="${resetLink}">${resetLink}</a></p>
+        <p>Jika Anda tidak meminta untuk mengatur ulang password, Anda dapat mengabaikan email ini.</p>
+        <p>Jika Anda mengalami kesulitan, jangan ragu untuk menghubungi tim dukungan kami.</p>
+        <br />
+        <footer style="font-size: 12px; color: #555;">
+            <p>Salam Hormat,</p>
+            <p>SMA 1 PAYAKUMBUH</p>
+        </footer>
+    `;
+    
     await this.sendEmail(email, subject, html);
-  }
+}
+
 
   private async sendEmail(
     to: string,
