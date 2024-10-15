@@ -72,6 +72,7 @@ export class AuthService {
       email: user.email,
       fullName: user.profile?.fullName,
       roles: activeRoles,
+      fotoProfile: user.profile?.fotoProfile
     };
 
     // Generate token JWT
