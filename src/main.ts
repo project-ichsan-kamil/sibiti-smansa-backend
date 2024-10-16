@@ -11,6 +11,7 @@ async function bootstrap() {
   // const app = await NestFactory.create(AppModule , {cors : true});
   const app = await NestFactory.create(AppModule);
 
+  //un comment if development
   // app.setGlobalPrefix('api');
 
   app.use(cookieParser());
