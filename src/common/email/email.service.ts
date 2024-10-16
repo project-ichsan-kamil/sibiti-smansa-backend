@@ -104,52 +104,47 @@
 
 
 import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import * as nodemailer from 'nodemailer';
-import { Setting } from 'src/settings/entities/setting.entity';
-import { Repository } from 'typeorm';
 
 @Injectable()
 export class EmailService {
-  private transporter: nodemailer.Transporter | null = null; // Inisialisasi sebagai null
+  private transporter: nodemailer.Transporter; // Langsung inisialisasi transporter
   private readonly logger = new Logger(EmailService.name);
 
-  constructor(
-    @InjectRepository(Setting)
-    private readonly settingsRepository: Repository<Setting>,
-  ) {
-    this.initialize();
-  }
+  // Hardcode kredensial email
+  private readonly emailUser = 'smapayakumbuh1@gmail.com'; // Ganti dengan email Anda
+  private readonly emailPass = 'rlzc ubtg oqaw ygvl'; // Ganti dengan password Anda
 
-  private async initialize() {
-    await this.createTransporter(); // Pastikan transporter diinisialisasi saat inisialisasi
-  }
-
-  private async createTransporter() {
-    const emailSetting = await this.settingsRepository.findOne({ where: { key: 'EMAIL_USER' } });
-    const passwordSetting = await this.settingsRepository.findOne({ where: { key: 'EMAIL_PASS' } });
-
-    if (!emailSetting || !passwordSetting) {
-      throw new HttpException('Email settings not found', HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-
+  constructor() {
+    // this.transporter = nodemailer.createTransport({
+    //   service: 'gmail',
+    //   auth: {
+    //     user: this.emailUser,
+    //     pass: this.emailPass,
+    //   },
+    // });
     this.transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
       auth: {
-        user: emailSetting.value,
-        pass: passwordSetting.value,
+        user: this.emailUser,
+        pass: this.emailPass,
       },
+      logger: true, // log to console
+      debug: true, // include SMTP traffic in the logs
     });
+    
   }
 
   public async sendPassword(email: string, password: string): Promise<void> {
     const subject = 'Selamat Datang! Akses Akun Anda di Web CBT SMA 1 Payakumbuh';
-    const BASE_URL = await this.settingsRepository.findOne({ where: { key: 'BASE_URL' } });
+    const BASE_URL = 'http://sibiti-smansa-prodlike.my.id'; 
 
     const html = `
       <p>Pengguna Yang Terhormat,</p>
       <p>Terima kasih telah mendaftar bersama kami! Anda sekarang dapat mengakses akun Anda dengan mengklik tautan di bawah ini:</p>
-      <p><a href="${BASE_URL.value}">${BASE_URL.value}</a></p>
+      <p><a href="${BASE_URL}">${BASE_URL}</a></p>
       <p>Silakan masuk menggunakan kredensial berikut:</p>
       <ul>
           <li><strong>Email:</strong> ${email}</li>
@@ -189,13 +184,8 @@ export class EmailService {
     subject: string,
     html: string,
   ): Promise<void> {
-    if (!this.transporter) {
-      throw new HttpException('Email transporter not initialized', HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-
-    const emailSetting = await this.settingsRepository.findOne({ where: { key: 'EMAIL_USER' } });
     const mailOptions = {
-      from: emailSetting.value,
+      from: this.emailUser, // Gunakan email yang di-hardcode
       to,
       subject,
       html,
