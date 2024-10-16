@@ -14,7 +14,7 @@ export class ClassController {
   @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
   async findAll(@Req() req: any, @Query('name') name?: string) {
     const currentUser = req.user;
-    const result = await this.classService.findAll(currentUser, name);
+    const result = await this.classService.findAllClass(currentUser, name);
     return {
       statusCode: 200,
       message: 'Data berhasil ditemukan',

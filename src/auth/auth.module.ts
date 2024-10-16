@@ -9,10 +9,11 @@ import { UserRole } from 'src/user-role/entities/user-role.entity';
 import { EmailService } from 'src/common/email/email.service';
 import { ProfileUser } from 'src/profile-user/entities/profile-user.entity';
 import { EncryptionService } from 'src/common/encryption/encryption.service';
+import { Setting } from 'src/settings/entities/setting.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Users, UserRole, ProfileUser]),
+    TypeOrmModule.forFeature([Users, UserRole, ProfileUser, Setting]),
     JwtModule.register({
       secret: Buffer.from('eW91ci0yNTYtYml0LXNlY3JldA==', 'base64').toString('ascii'), //TOOD: Change this secret key
       signOptions: { expiresIn: '6d' },

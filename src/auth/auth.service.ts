@@ -11,6 +11,7 @@ import { EmailService } from 'src/common/email/email.service';
 import { ChangePasswordDto } from './dto/changePassword.dto';
 import { ProfileUser } from 'src/profile-user/entities/profile-user.entity';
 import { EncryptionService } from 'src/common/encryption/encryption.service';
+import { Setting } from 'src/settings/entities/setting.entity';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +22,8 @@ export class AuthService {
     private readonly usersRepository: Repository<Users>,
     @InjectRepository(ProfileUser)
     private readonly profileRepository: Repository<ProfileUser>,
+    @InjectRepository(Setting)
+    private readonly settingRepository: Repository<Setting>,
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
     private readonly encryptionService: EncryptionService,
@@ -69,6 +72,7 @@ export class AuthService {
       email: user.email,
       fullName: user.profile?.fullName,
       roles: activeRoles,
+      fotoProfile: user.profile?.fotoProfile
     };
 
     // Generate token JWT
@@ -82,8 +86,11 @@ export class AuthService {
   }
 
   async sendResetPasswordEmail(email: string): Promise<void> {
+    this.logger.log(`[sendResetPasswordEmail] Start password reset for email: ${email}`);
+
     const user = await this.usersRepository.findOne({ where: { email } });
     if (!user) {
+      this.logger.error(`[sendResetPasswordEmail] User with email ${email} not found`);
       throw new HttpException('Email tidak terdaftar', HttpStatus.NOT_FOUND);
     }
 
@@ -91,42 +98,52 @@ export class AuthService {
     const token = this.jwtService.sign({ id: user.id });
     
     // Kirim email dengan link reset password
-    const resetLink = `http://yourdomain.com/change-password/${token}`;
-    await this.emailService.sendPassword(email, resetLink);
+    const BASE_URL = await this.settingRepository.findOne({ where: { key: 'BASE_URL' } });
+    const resetLink = `${BASE_URL.value}/change-password/${token}`;
+    await this.emailService.resetPassword(email, resetLink);
+
+    this.logger.log(`[sendResetPasswordEmail] Send email reset password successfully for email: ${email}`);
   }
 
   async changePassword(token: string, changePasswordDto: ChangePasswordDto): Promise<void> {
+    const executor = `[ChangePassword]`; // Anda dapat menambahkan informasi pengguna jika diperlukan
+    this.logger.log(`${executor} Start change password process`);
+
     let decodedToken;
-  
+
     try {
-      decodedToken = this.jwtService.verify(token);
+        decodedToken = this.jwtService.verify(token);
     } catch (error) {
-      console.log(error);
-      
-      throw new HttpException('Token tidak valid atau telah kedaluwarsa', HttpStatus.UNAUTHORIZED);
+        this.logger.error(`${executor} Invalid or expired token: ${error.message}`);
+        throw new HttpException('Token tidak valid atau telah kedaluwarsa', HttpStatus.UNAUTHORIZED);
     }
-  
+
     const userId = decodedToken.id;
-  
+
     const user = await this.usersRepository.findOne({ where: { id: userId, statusData: true } });
     if (!user) {
-      throw new HttpException('User tidak ditemukan', HttpStatus.NOT_FOUND);
+        this.logger.error(`${executor} User not found for ID: ${userId}`);
+        throw new HttpException('User tidak ditemukan', HttpStatus.NOT_FOUND);
     }
-  
+
     // Hash password baru
     const hashedPassword = await bcrypt.hash(changePasswordDto.newPassword, 10);
     user.password = hashedPassword;
 
     const userProfile = await this.profileRepository.findOne({ where: { user: { id: userId } } });
     if (!userProfile) {
-      throw new HttpException('User profile tidak ditemukan', HttpStatus.NOT_FOUND);
+        this.logger.error(`${executor} User profile not found for user ID: ${userId}`);
+        throw new HttpException('User profile tidak ditemukan', HttpStatus.NOT_FOUND);
     }
 
     userProfile.encrypt = await this.encryptionService.encrypt(changePasswordDto.newPassword);
-  
+    
     await this.usersRepository.save(user);
     await this.profileRepository.save(userProfile);
-  }
+    
+    this.logger.log(`${executor} Password successfully changed for user ID: ${userId}`);
+}
+
   
 
   async validateUser(email: string, password: string): Promise<Users> {

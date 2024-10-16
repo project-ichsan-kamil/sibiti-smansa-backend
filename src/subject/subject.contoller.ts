@@ -10,7 +10,7 @@ export class SubjectController {
 
   @Get()
   async findAll(@Req() req, @Query('name') name?: string): Promise<any> {
-    const result = await this.subjectService.findAll(req.user, name);
+    const result = await this.subjectService.findAllSubject(req.user, name);
     return {
       statusCode: 200,
       message: 'Data berhasil ditemukan',

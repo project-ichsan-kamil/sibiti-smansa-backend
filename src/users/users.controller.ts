@@ -163,6 +163,7 @@ export class UsersController {
   }
 
   @Post('upload-excel')
+  @Roles(UserRoleEnum.SUPER_ADMIN)
   @UseInterceptors(FileInterceptor('file'))
   async uploadExcel(@UploadedFile() file: Express.Multer.File, @Req() req) {
     const currentUser = req.user;
@@ -178,7 +179,7 @@ export class UsersController {
   }
 
   @Get('unassigned-verified-users')
-  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN)
+  @Roles(UserRoleEnum.SUPER_ADMIN)
   async getUnassignedVerifiedUsers(@Req() req) {
     const currentUser = req.user;
     const result =

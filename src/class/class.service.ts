@@ -15,8 +15,8 @@ export class ClassService {
         private readonly userClassRepository: Repository<UserClass>,
     ) {}
 
-    async findAll(currentUser: any, name?: string): Promise<Class[]> {
-        const executor = `[${currentUser.fullName}] [findAll]`;
+    async findAllClass(currentUser: any, name?: string): Promise<Class[]> {
+        const executor = `[${currentUser.fullName}] [findAllClass]`;
         this.logger.log(`${executor} Fetching all classes with statusData true`);
     
         const query = this.classRepository.createQueryBuilder('class')

@@ -313,4 +313,54 @@ async getAbsentsByDateForTeachers(currentUser: any, startDate: Date, endDate: Da
 }
 
 
+async getFilteredAbsentsForStudents(
+  currentUser: any,
+  classId: number | null,  // Allow classId to be null
+  date: Date,
+): Promise<any[]> {
+  const executor = `[${currentUser.fullName}] [getFilteredAbsentsForStudents]`;
+  const formattedDate = date.toISOString().slice(0, 10);
+  this.logger.log(`${executor} Filtering absents for date: ${formattedDate}, classId: ${classId}`);
+
+  
+  // Start building the query
+  const query = this.absentRepository.createQueryBuilder('absent')
+      .innerJoin('absent.user', 'u') // Join to user
+      .innerJoin('u.userClasses', 'uc') // Join to userClasses
+      .innerJoin('uc.classEntity', 'c') // Join to classEntity in UserClass
+      .innerJoin('u.profile', 'p') // Join to profile to get fullName
+      .where('DATE(absent.date) = :date', { date: formattedDate }); // Always filter by date
+
+  // Conditionally add classId filter if provided
+  if (classId) {
+      query.andWhere('uc.classEntityId = :classId', { classId }); // Filter by classId if provided
+  }
+
+  // Select specific columns, including fullName and class name
+  query.select([
+      'absent.id AS absentId',
+      'absent.date AS date',
+      'absent.latitude AS latitude',
+      'absent.longitude AS longitude',
+      'absent.status AS status',
+      'absent.notes AS notes',
+      'absent.urlFile AS urlFile',
+      'p.fullName AS fullName', // Full name from profile
+      'c.name AS className' // Class name
+  ]);
+
+  const absences = await query.getRawMany();
+
+  if (absences.length === 0) {
+    this.logger.warn(`${executor} No absences found for the provided filters.`);
+  } else {
+    this.logger.log(`${executor} Successfully fetched ${absences.length} absences.`);
+  }
+  return absences;
+}
+
+
+
+
+
 }
