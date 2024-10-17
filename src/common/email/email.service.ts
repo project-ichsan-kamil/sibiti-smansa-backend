@@ -124,7 +124,7 @@ export class EmailService {
     //   },
     // });
     this.transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
+      host: 'smtp-relay.gmail.com',
       port: 465,
       secure: true,
       auth: {
