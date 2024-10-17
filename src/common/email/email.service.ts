@@ -124,9 +124,9 @@ export class EmailService {
     //   },
     // });
     this.transporter = nodemailer.createTransport({
-      host: 'aspmx.l.google.com',
-      port: 587,
-      secure: false,
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: {
         user: this.emailUser,
         pass: this.emailPass,
