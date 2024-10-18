@@ -19,8 +19,8 @@ export class EmailService {
         user: this.emailUser,
         pass: this.emailPass,
       },
-      logger: true, 
-      debug: true, 
+      logger: false, 
+      debug: false, 
     });
     
   }
