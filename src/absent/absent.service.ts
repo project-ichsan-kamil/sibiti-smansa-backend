@@ -17,6 +17,7 @@ import { UserRoleEnum } from 'src/user-role/enum/user-role.enum';
 
 @Injectable()
 export class AbsentService {
+  private cache = new Map();
   private readonly logger = new Logger(AbsentService.name);
   constructor(
     @InjectRepository(Absent)
@@ -185,8 +186,18 @@ export class AbsentService {
   
   async checkToday(currentUser: any): Promise<any> {
     const executor = `[${currentUser.fullName}][checkToday]`;
-    this.logger.log(`${executor} Checking today's absence.`); 
 
+      // Cache key based on user ID
+      const cacheKey = `absent_${currentUser.id}`;
+
+      // Check if the data is cached and valid (not expired)
+      const cachedData = this.cache.get(cacheKey);
+      
+      if (cachedData && cachedData.expiration > Date.now()) {
+        return cachedData.data;
+      }
+
+    this.logger.log(`${executor} Checking today's absence.`); 
     const indonesiaTime = moment().tz('Asia/Jakarta');
     const todayStart = indonesiaTime.clone().startOf('day').toDate();
     const todayEnd = indonesiaTime.clone().endOf('day').toDate();
@@ -216,7 +227,10 @@ export class AbsentService {
       }),
       status: existingAbsent.status,
     };
-        
+
+      // Cache the result with an expiration time of 10 seconds
+      const expiration = Date.now() + (12 * 60 * 60 * 1000);
+      this.cache.set(cacheKey, { data: result, expiration });        
 
     return result;
   }
