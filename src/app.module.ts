@@ -25,11 +25,9 @@ import { SettingsModule } from './settings/settings.module';
       type: 'mysql',
       host: 'localhost',
       port: 3306,
-      // username: 'root',
-      // password: 'root',
-      username: 'smansaprodlike',
-      password: 'Smansaprodlike01',
-      database: 'sibiti',
+      username: 'smansa-prod',    //Change if prod
+      password: 'Smansaprod01',   //Change if prod
+      database: 'smansaprod',     //Change if prod
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true,
     }),
