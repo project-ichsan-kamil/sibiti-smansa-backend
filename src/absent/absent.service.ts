@@ -17,6 +17,7 @@ import { UserRoleEnum } from 'src/user-role/enum/user-role.enum';
 
 @Injectable()
 export class AbsentService {
+  private cache = new Map();
   private readonly logger = new Logger(AbsentService.name);
   constructor(
     @InjectRepository(Absent)
@@ -185,8 +186,18 @@ export class AbsentService {
   
   async checkToday(currentUser: any): Promise<any> {
     const executor = `[${currentUser.fullName}][checkToday]`;
-    this.logger.log(`${executor} Checking today's absence.`); 
 
+      // Cache key based on user ID
+      const cacheKey = `absent_${currentUser.id}`;
+
+      // Check if the data is cached and valid (not expired)
+      const cachedData = this.cache.get(cacheKey);
+      
+      if (cachedData && cachedData.expiration > Date.now()) {
+        return cachedData.data;
+      }
+
+    this.logger.log(`${executor} Checking today's absence.`); 
     const indonesiaTime = moment().tz('Asia/Jakarta');
     const todayStart = indonesiaTime.clone().startOf('day').toDate();
     const todayEnd = indonesiaTime.clone().endOf('day').toDate();
@@ -216,7 +227,10 @@ export class AbsentService {
       }),
       status: existingAbsent.status,
     };
-        
+
+      // Cache the result with an expiration time of 10 seconds
+      const expiration = Date.now() + (12 * 60 * 60 * 1000);
+      this.cache.set(cacheKey, { data: result, expiration });        
 
     return result;
   }
@@ -286,6 +300,8 @@ async getAbsentsByDateForTeachers(currentUser: any, startDate: Date, endDate: Da
       AND ur.statusData = true
       AND a.date BETWEEN ? AND ?
       AND a.statusData = true
+    ORDER BY
+      a.createdAt DESC
   `;
 
   // Menjalankan query SQL dengan parameter
@@ -311,6 +327,58 @@ async getAbsentsByDateForTeachers(currentUser: any, startDate: Date, endDate: Da
   this.logger.log(`${executor} Successfully fetched ${result.length} absences`);
   return result;
 }
+
+
+async getFilteredAbsentsForStudents(
+  currentUser: any,
+  classId: number | null,  // Allow classId to be null
+  date: Date,
+): Promise<any[]> {
+  const executor = `[${currentUser.fullName}] [getFilteredAbsentsForStudents]`;
+  const formattedDate = date.toISOString().slice(0, 10);
+  this.logger.log(`${executor} Filtering absents for date: ${formattedDate}, classId: ${classId}`);
+
+  
+  // Start building the query
+  const query = this.absentRepository.createQueryBuilder('absent')
+      .innerJoin('absent.user', 'u') // Join to user
+      .innerJoin('u.userClasses', 'uc') // Join to userClasses
+      .innerJoin('uc.classEntity', 'c') // Join to classEntity in UserClass
+      .innerJoin('u.profile', 'p') // Join to profile to get fullName
+      .where('DATE(absent.date) = :date', { date: formattedDate }); // Always filter by date
+
+  // Conditionally add classId filter if provided
+  if (classId) {
+      query.andWhere('uc.classEntityId = :classId', { classId }); // Filter by classId if provided
+  }
+
+  // Select specific columns, including fullName and class name
+  query.select([
+      'absent.id AS absentId',
+      'absent.date AS date',
+      'absent.latitude AS latitude',
+      'absent.longitude AS longitude',
+      'absent.status AS status',
+      'absent.notes AS notes',
+      'absent.urlFile AS urlFile',
+      'p.fullName AS fullName', // Full name from profile
+      'c.name AS className' // Class name
+  ]);
+
+  query.orderBy('absent.createdAt', 'DESC');
+
+  const absences = await query.getRawMany();
+
+  if (absences.length === 0) {
+    this.logger.warn(`${executor} No absences found for the provided filters.`);
+  } else {
+    this.logger.log(`${executor} Successfully fetched ${absences.length} absences.`);
+  }
+  return absences;
+}
+
+
+
 
 
 }

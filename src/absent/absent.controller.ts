@@ -129,8 +129,6 @@ export class AbsentController {
     @Req() req: any,
   ): Promise<any> {
     const currentUser = req.user;
-
-    console.log(date);
     
     if (!date) {
       throw new BadRequestException('Date parameter is required');
@@ -152,4 +150,22 @@ export class AbsentController {
       data: result,
     };
   }
+
+  @Get('students')
+    async getFilteredAbsents(
+        @Query('classId') classId: number,
+        @Query('date') date: string, // Date is passed as a string in YYYY-MM-DD format
+        @Req() req: any
+    ) {
+      const currentUser = req.user;
+        const dateObj = new Date(date);
+
+        const result = await this.absentService.getFilteredAbsentsForStudents(currentUser, classId, dateObj);
+
+        return {
+          statusCode: 200,
+          message: 'Absences retrieved successfully',
+          data: result,
+        };
+    }
 }

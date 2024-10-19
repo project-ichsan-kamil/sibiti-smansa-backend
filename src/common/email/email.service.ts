@@ -1,42 +1,93 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class EmailService {
-  private transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: 'fajrulichsan0208@gmail.com',  //TODO pindah ke .env
-      pass: 'xoty evqi sghp uxtj' 
-    }
-  });
+  private transporter: nodemailer.Transporter; // Langsung inisialisasi transporter
+  private readonly logger = new Logger(EmailService.name);
+
+  // Hardcode kredensial email
+  private readonly emailUser = 'smapayakumbuh1@gmail.com'; // Ganti dengan email Anda
+  private readonly emailPass = 'rlzc ubtg oqaw ygvl'; // Ganti dengan password Anda  
+
+  constructor() {
+    this.transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: this.emailUser,
+        pass: this.emailPass,
+      },
+      logger: false, 
+      debug: false, 
+    });
+    
+  }
 
   public async sendPassword(email: string, password: string): Promise<void> {
-    const subject = 'Password Account';
-    const html = `<p>Password Account ${password}</p>`;
+    const subject = 'Selamat Datang! Akses Akun Anda di Web CBT SMA 1 Payakumbuh';
+    const BASE_URL = 'http://sibiti-smansa.my.id';  //TODO change
+
+    const html = `
+      <p>Pengguna Yang Terhormat,</p>
+      <p>Terima kasih telah mendaftar bersama kami! Anda sekarang dapat mengakses akun Anda dengan mengklik tautan di bawah ini:</p>
+      <p><a href="${BASE_URL}">${BASE_URL}</a></p>
+      <p>Silakan masuk menggunakan kredensial berikut:</p>
+      <ul>
+          <li><strong>Email:</strong> ${email}</li>
+          <li><strong>Kata Sandi:</strong> ${password}</li>
+      </ul>
+      <p>Jika Anda memiliki pertanyaan, jangan ragu untuk menghubungi tim kami.</p>
+      <br />
+      <footer style="font-size: 12px; color: #555;">
+          <p>Salam Hormat,</p>
+          <p>SMA 1 PAYAKUMBUH</p>
+      </footer>
+    `;
+
     await this.sendEmail(email, subject, html);
   }
 
   public async resetPassword(email: string, resetLink: string): Promise<void> {
-    const subject = 'Reset Password';
-    const html = `<p>Untuk mengatur ulang password Anda, silakan klik tautan berikut: <a href="${resetLink}">Reset Password</a></p>`;
+    const subject = 'Permintaan Reset Password';
+    const html = `
+      <p>Pengguna Yang Terhormat,</p>
+      <p>Kami menerima permintaan untuk mengatur ulang password Anda. Untuk melanjutkan, silakan klik tautan di bawah ini:</p>
+      <p><a href="${resetLink}">${resetLink}</a></p>
+      <p>Jika Anda tidak meminta untuk mengatur ulang password, Anda dapat mengabaikan email ini.</p>
+      <p>Jika Anda mengalami kesulitan, jangan ragu untuk menghubungi tim dukungan kami.</p>
+      <br />
+      <footer style="font-size: 12px; color: #555;">
+          <p>Salam Hormat,</p>
+          <p>SMA 1 PAYAKUMBUH</p>
+      </footer>
+    `;
+
     await this.sendEmail(email, subject, html);
   }
 
-  private async sendEmail(to: string, subject: string, html: string): Promise<void> {
+  private async sendEmail(
+    to: string,
+    subject: string,
+    html: string,
+  ): Promise<void> {
     const mailOptions = {
-      from: 'eurekademy@gmail.com',
+      from: this.emailUser,
       to,
       subject,
-      html
+      html,
     };
 
     try {
       await this.transporter.sendMail(mailOptions);
-      console.log(`Email sent to ${to} successfully.`);
+      this.logger.log(`Email sent to ${to} successfully.`);
     } catch (error) {
-      console.error('Error sending email:', error);
-      throw new HttpException('Failed to send email', HttpStatus.INTERNAL_SERVER_ERROR);
+      this.logger.error(`Error sending email to ${to}: ${error.message}`, error.stack);
+      throw new HttpException(
+        'Failed to send email',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }

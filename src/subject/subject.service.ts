@@ -11,8 +11,8 @@ export class SubjectService {
     private readonly subjectRepository: Repository<Subject>,
   ) {}
 
-  async findAll(currentUser: any, name?: string): Promise<Partial<Subject>[]> {
-    const executor = `[${currentUser.fullName}] [findAll]`;
+  async findAllSubject(currentUser: any, name?: string): Promise<Partial<Subject>[]> {
+    const executor = `[${currentUser.fullName}] [findAllSubject]`;
 
     const query = this.subjectRepository
       .createQueryBuilder('subject')
