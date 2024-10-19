@@ -1,0 +1,70 @@
+name: CI/CD Pipeline for NestJS
+on:
+  push:
+    branches:
+      - development 
+ 
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout Repository
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+
+      # Step 2: Setup Node.js (versi 20)
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'  # Menggunakan Node.js versi 20
+
+      # Step 3: Cache Node.js modules untuk mempercepat proses instalasi dependensi
+      - name: Cache Node.js modules
+        uses: actions/cache@v2
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      # Step 4: Install dependencies dengan fallback ke npm install
+      - name: Install dependencies
+        run: |
+          echo "Running npm ci..."
+          npm ci || (echo "npm ci failed, falling back to npm install..." && npm install)
+
+
+      # Step 5: Build project
+      - name: Build the project
+        run: |
+          npm run build
+
+      # Step 6: Test SSH connection to server (Debugging Step)
+      - name: Test SSH connection
+        env:
+          HOST: ${{ secrets.PRODLIKE_SERVER }}
+          USER: ${{ secrets.PRODLIKE_USERNAME }}
+          PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY_PRODLIKE }}
+        run: |
+          echo "Testing SSH connection..."
+          mkdir -p ~/.ssh
+          echo "$PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa $USER@$HOST "echo SSH connection successful!"
+
+      # Step 7: Deploy dan Restart PM2 di server
+      - name: Deploy to Server and Restart PM2
+        env:
+          HOST: ${{ secrets.PRODLIKE_SERVER }}       # IP atau domain server
+          USER: ${{ secrets.PRODLIKE_USERNAME }}       # Username yang benar (misalnya: fajrulichsan)
+          PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY_PRODLIKE }}  # Private key dari GitHub Secrets
+        run: |
+          echo "Deploying to server..."
+          mkdir -p ~/.ssh
+          echo "$PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          rsync -avz -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa" --exclude node_modules ./ $USER@$HOST:/home/smansaprodlike/sibiti-smansa-backend
+
+          echo "Restarting PM2..."
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa $USER@$HOST 'cd /home/smansaprodlike/sibiti-smansa-backend && npm install && pm2 restart smansa-prodlike-backend'
