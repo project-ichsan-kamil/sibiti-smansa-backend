@@ -300,6 +300,8 @@ async getAbsentsByDateForTeachers(currentUser: any, startDate: Date, endDate: Da
       AND ur.statusData = true
       AND a.date BETWEEN ? AND ?
       AND a.statusData = true
+    ORDER BY
+      a.createdAt DESC
   `;
 
   // Menjalankan query SQL dengan parameter
@@ -362,6 +364,8 @@ async getFilteredAbsentsForStudents(
       'p.fullName AS fullName', // Full name from profile
       'c.name AS className' // Class name
   ]);
+
+  query.orderBy('absent.createdAt', 'DESC');
 
   const absences = await query.getRawMany();
 
