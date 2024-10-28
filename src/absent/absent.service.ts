@@ -14,6 +14,7 @@ import { log } from 'console';
 import { StatusAbsent } from './enum/absent.enum';
 import { UserRole } from 'src/user-role/entities/user-role.entity';
 import { UserRoleEnum } from 'src/user-role/enum/user-role.enum';
+import { UserClass } from 'src/class/entities/user-class.entity';
 
 @Injectable()
 export class AbsentService {
@@ -24,6 +25,8 @@ export class AbsentService {
     private readonly absentRepository: Repository<Absent>,
     @InjectRepository(Users)
     private readonly userRepository: Repository<Users>,
+    @InjectRepository(UserClass)
+    private readonly userClassRepository: Repository<UserClass>,
   ) {}
 
   async create(
@@ -345,7 +348,8 @@ async getFilteredAbsentsForStudents(
       .innerJoin('u.userClasses', 'uc') // Join to userClasses
       .innerJoin('uc.classEntity', 'c') // Join to classEntity in UserClass
       .innerJoin('u.profile', 'p') // Join to profile to get fullName
-      .where('DATE(absent.date) = :date', { date: formattedDate }); // Always filter by date
+      .where('DATE(absent.date) = :date', { date: formattedDate })// Always filter by date
+      .andWhere('absent.statusData = true');
 
   // Conditionally add classId filter if provided
   if (classId) {
@@ -377,8 +381,114 @@ async getFilteredAbsentsForStudents(
   return absences;
 }
 
+async getTeachersWithoutAbsents(currentUser: any, startDate: Date, endDate: Date): Promise<any[]> {
+  const executor = `[${currentUser.fullName}] [getTeachersWithoutAbsents]`;
 
+  const query = `
+    SELECT
+      p.userId AS "userId",
+      p.fullName AS "fullName",
+      s.id AS "subjectId",
+      s.name AS "subjectName"
+    FROM
+      user_role ur
+    LEFT JOIN profile_user p ON p.userId = ur.userId
+    LEFT JOIN subject s ON ur.subjectId = s.id
+    WHERE
+      ur.role = ?
+      AND ur.statusData = true
+      AND ur.userId NOT IN (
+        SELECT a.userId
+        FROM absent a
+        WHERE a.date BETWEEN ? AND ?
+          AND a.statusData = true
+      )
+    ORDER BY
+      p.fullName ASC
+  `;
 
+  // Menjalankan query SQL dengan parameter
+  const teachersWithoutAbsents = await this.absentRepository.query(query, [UserRoleEnum.GURU, startDate, endDate]);
 
+  if (!teachersWithoutAbsents.length) {
+    this.logger.warn(`${executor} No teachers found without absences in the specified date range.`);
+  }
+  
 
+  // Mapping hasil query untuk menampilkan hasil yang lebih rapi
+  const result = teachersWithoutAbsents.map((teacher) => ({
+    userId: teacher.userId,
+    fullName: teacher.fullName,
+    subject: teacher.subjectName,
+    date: startDate
+  }));
+
+  this.logger.log(`${executor} Successfully fetched ${result.length} teachers without absences`);
+  return result;
+}
+
+  async getStudentsWithoutAbsents(
+    currentUser: any, 
+    targetDate: Date, 
+    classId?: number
+  ): Promise<any[]> {
+    const executor = `[${currentUser.fullName}] [getStudentsWithoutAbsents]`;
+
+    // Validasi dan parsing tanggal
+    const parsedDate = new Date(targetDate);
+    if (isNaN(parsedDate.getTime())) {
+      throw new BadRequestException('Invalid date format. Expected format: YYYY-MM-DD');
+    }
+
+    const formattedDate = parsedDate.toISOString().slice(0, 10); // Format tanggal
+    this.logger.log(`${executor} Filtering students without attendance records for date: ${formattedDate}, classId: ${classId}`);
+
+    // Bangun query SQL dengan kondisi filter classId secara dinamis
+    let query = `
+      SELECT 
+        pu.fullName,
+        uc.classEntityId,
+        c.name AS className
+      FROM 
+        user_class uc 
+      JOIN 
+        profile_user pu ON pu.userId = uc.userId 
+      JOIN 
+        class c ON uc.classEntityId = c.id 
+      LEFT JOIN 
+        absent a ON a.userId = pu.userId AND DATE(a.date) = ?
+      JOIN 
+        users u ON u.id = pu.userId 
+      WHERE 
+        uc.statusData = true
+        AND a.userId IS NULL 
+        AND u.isVerified = true 
+        AND u.statusData = true
+    `;
+
+    // Tambahkan filter berdasarkan classId jika diberikan
+    const params = [formattedDate]; // Parameter untuk query
+
+    if (classId) {
+      query += ` AND uc.classEntityId = ?`; // Tambahkan kondisi classId
+      params.push(classId.toString()); // Tambahkan classId ke parameter
+    }
+
+    query += ` ORDER BY pu.fullName ASC`; // Urutkan berdasarkan nama siswa
+
+    // Eksekusi query dengan parameter
+    const studentsWithoutAbsents = await this.userClassRepository.manager.query(query, params);
+    const studentsWithDate = studentsWithoutAbsents.map(student => ({
+      ...student,
+      date: parsedDate
+    }));
+
+    if (studentsWithoutAbsents.length === 0) {
+      this.logger.warn(`${executor} No students without attendance records found for date ${formattedDate} and classId ${classId}.`);
+    } else {
+      this.logger.log(`${executor} Successfully retrieved ${studentsWithoutAbsents.length} students without attendance records.`);
+    }
+
+    return studentsWithDate;
+  }
 }
