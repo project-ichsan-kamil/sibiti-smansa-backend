@@ -152,6 +152,7 @@ export class AbsentController {
   }
 
   @Get('students')
+  @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
     async getFilteredAbsents(
         @Query('classId') classId: number,
         @Query('date') date: string, // Date is passed as a string in YYYY-MM-DD format
@@ -167,5 +168,71 @@ export class AbsentController {
           message: 'Absences retrieved successfully',
           data: result,
         };
+    }
+
+    @Get('teachers-without-absents')
+    @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
+    async getTeachersWithoutAbsents(
+      @Query('date') date: string,
+      @Req() req: any
+    ) {
+      const currentUser = req.user;
+
+      if (!date) {
+        throw new BadRequestException('Date parameter is required');
+      }
+  
+      const parsedDate = new Date(date);
+      if (isNaN(parsedDate.getTime())) {
+        throw new BadRequestException('Invalid date format. Expected format: YYYY-MM-DD');
+      }
+    
+      const startDate = new Date(parsedDate.setHours(0, 0, 0, 0));
+      const endDate = new Date(parsedDate.setHours(23, 59, 59, 999));
+  
+      // Memanggil service untuk mendapatkan list guru yang belum absen
+      const teachersWithoutAbsents = await this.absentService.getTeachersWithoutAbsents(
+        currentUser,
+        startDate,
+        endDate,
+      );
+
+      
+      return {
+        statusCode: 200,
+        message: 'Absences retrieved successfully',
+        data: teachersWithoutAbsents,
+      };
+    }
+
+
+    @Get('students-without-absents')
+    @Roles(UserRoleEnum.SUPER_ADMIN, UserRoleEnum.ADMIN, UserRoleEnum.GURU)
+    async getStudentsWithoutAbsents(
+      @Query('date') date: string,
+      @Query('classId') classId: number, 
+      @Req() req: any
+    ) {
+      const currentUser = req.user;
+
+      if (!date) {
+        throw new BadRequestException('Date parameter is required');
+      }
+    
+      const targetDate = new Date(date); 
+  
+      // Memanggil service untuk mendapatkan list guru yang belum absen
+      const teachersWithoutAbsents = await this.absentService.getStudentsWithoutAbsents(
+        currentUser,
+        targetDate,
+        classId
+      );
+
+      
+      return {
+        statusCode: 200,
+        message: 'Absences retrieved successfully',
+        data: teachersWithoutAbsents,
+      };
     }
 }
