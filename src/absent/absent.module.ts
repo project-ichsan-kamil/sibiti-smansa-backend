@@ -5,9 +5,10 @@ import { Absent } from './entities/absent.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Users } from 'src/users/entities/user.entity';
 import { S3Service } from 'src/s3/s3.service';
+import { UserClass } from 'src/class/entities/user-class.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Absent, Users])],
+  imports: [TypeOrmModule.forFeature([Absent, Users, UserClass])],
   controllers: [AbsentController],
   providers: [AbsentService, S3Service],
 })
