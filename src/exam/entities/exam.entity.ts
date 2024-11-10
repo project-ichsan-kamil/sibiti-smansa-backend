@@ -166,6 +166,9 @@ export class Exam {
   @Column({ default: true })
   statusData: boolean;
 
+  @Column({nullable: false, default: 123456 })
+  passcode: number;
+
   // Relasi ke Users sebagai owner ujian - Bidirectional
   @ManyToOne(() => Users, (user) => user.examsOwned)
   @JoinColumn({ name: 'ownerId' })
