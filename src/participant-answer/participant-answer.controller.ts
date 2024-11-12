@@ -24,21 +24,18 @@ import { CompleteExamDto } from './dto/complete-answer.dto';
 export class ParticipantAnswerController {
   constructor(private readonly answerService: ParticipantAnswerService) {}
 
-  @Post('create')
+  @Post('start')
   @Roles(UserRoleEnum.SISWA)
   @UsePipes(ValidationPipe)
-  async createAnswer(
-    @Body(ValidationPipe) createAnswerDto: CreateParticipantAnswerDto,
+  async startExam(
+    @Body('examId') examId: number,
     @Req() req: any,
   ) {
     const currentUser = req.user;
-    const result = await this.answerService.createAnswer(
-      createAnswerDto,
-      currentUser,
-    );
+    const result = await this.answerService.createAnswer(examId, currentUser);
     return {
-      statusCode: 201,
-      message: 'Answer created successfully',
+      statusCode: 200,
+      message: 'Exam started successfully',
       data: result,
     };
   }

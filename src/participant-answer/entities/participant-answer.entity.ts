@@ -43,12 +43,6 @@ export class ParticipantAnswer {
   @Column({ type: 'int', default: 0 })
   score: number;
 
-  @Column({ type: 'text', default: null})
-  latitude: string;
-
-  @Column({ type: 'text', default: null})
-  longitude : string;
-
   @Column({ type: 'int', default: 0 })
   countCheating: number;
 
