@@ -9,6 +9,8 @@ import {
   UsePipes,
   Get,
   Query,
+  HttpStatus,
+  HttpException,
 } from '@nestjs/common';
 import { ParticipantAnswerService } from './participant-answer.service';
 import { CreateParticipantAnswerDto } from './dto/create-participant-answer.dto';
@@ -93,5 +95,29 @@ export class ParticipantAnswerController {
       message: 'Score exam data retrieved successfully',
       data: result,
     };
+  }
+
+  @Get('check')
+  @Roles(UserRoleEnum.SISWA)
+  async checkAnswerExistence(@Query('examId') examId: number, @Req() req: any) {
+    const currentUser = req.user; // Assuming user ID is available in the request (e.g., via a JWT)
+
+    if (!examId) {
+      throw new HttpException('Exam ID is required', HttpStatus.BAD_REQUEST);
+    }
+
+    const doesExist = await this.answerService.doesAnswerExist(examId, currentUser);
+
+    if (doesExist) {
+      return {
+        message: 'Answer already exists for this exam',
+        exists: true,
+      };
+    } else {
+      return {
+        message: 'No existing answer for this exam',
+        exists: false,
+      };
+    }
   }
 }

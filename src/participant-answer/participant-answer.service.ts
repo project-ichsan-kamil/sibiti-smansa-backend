@@ -300,6 +300,31 @@ export class ParticipantAnswerService {
     }
     return false;
   }
+
+  async doesAnswerExist(examId: number, currentUser:any): Promise<boolean> {
+    const executor = `[${currentUser.fullName}] [doesAnswerExist]`;
+
+    this.logger.log(`${executor} Checking if answer exists for examId: ${examId}, userId: ${currentUser.id}`);
+  
+    // Check if an answer already exists for this user and exam
+    const existingAnswer = await this.participantAnswerRepository.findOne({
+      where: {
+        exam: { id: examId },
+        user: { id: currentUser.id },
+        statusData: true,
+      },
+    });
+  
+    if (existingAnswer) {
+      this.logger.log(`${executor} Answer found for examId: ${examId}, userId: ${currentUser.id}`);
+    } else {
+      this.logger.log(`${executor} No answer found for examId: ${examId}, userId: ${currentUser.id}`);
+    }
+  
+    // Return true if an answer exists, otherwise false
+    return !!existingAnswer;
+  }
+  
   
   
 }
