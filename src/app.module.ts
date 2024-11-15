@@ -18,6 +18,7 @@ import { ParticipantAnswerModule } from './participant-answer/participant-answer
 import { AbsentModule } from './absent/absent.module';
 import { S3Module } from './s3/s3.module';
 import { SettingsModule } from './settings/settings.module';
+import { SebExamModule } from './seb-exam/seb-exam.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { SettingsModule } from './settings/settings.module';
     AbsentModule,
     S3Module,
     SettingsModule,
+    SebExamModule,
   ],
   controllers: [],
   providers: [EncryptionService],
