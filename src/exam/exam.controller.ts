@@ -130,7 +130,7 @@ export class ExamController {
   }
 
   @Get('get-by')
-  @Roles(UserRoleEnum.GURU, UserRoleEnum.ADMIN, UserRoleEnum.SUPER_ADMIN)
+  @Roles(UserRoleEnum.GURU, UserRoleEnum.ADMIN, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.SISWA)
   async getExamById(@Query('id') id: number, @Req() req: any) {
     const currentUser = req.user; 
       const examData = await this.examService.getExamById(id, currentUser);
