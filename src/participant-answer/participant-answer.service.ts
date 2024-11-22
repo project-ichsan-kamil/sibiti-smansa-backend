@@ -24,63 +24,64 @@ export class ParticipantAnswerService {
     private participantExamRepository: Repository<ParticipantExam>,
     @InjectRepository(Question)
     private questionRepository: Repository<Question>,
+    @InjectRepository(UserClass)
+    private userClassRepository: Repository<UserClass>,
   ) {}
 
-  async createAnswer(createAnswerDto: CreateParticipantAnswerDto, currentUser: any) {
+  async createAnswer(examId: number, currentUser: any) {    
     const executor = `[${currentUser.fullName}][createAnswer]`;
+    
+    this.logger.log(`${executor} Starting answer creation for exam ID: ${examId}`);
+    
   
-    this.logger.log(`${executor} Starting answer creation for exam ID: ${createAnswerDto.examId}`);
-  
-    const { examId, latitude, longitude } = createAnswerDto;
-  
-    // Jalankan operasi secara paralel
+    // Parallel operations to fetch exam and existing answer
     const [exam, existingAnswer] = await Promise.all([
       this.examRepository.findOne({ where: { id: examId, statusData: true } }),
       this.participantAnswerRepository.findOne({ where: { user: { id: currentUser.id }, exam: { id: examId } } })
     ]);
   
-    // 1. Check apakah ujian ada
+    // Check if the exam exists
     if (!exam) {
       this.logger.error(`${executor} Exam not found with ID: ${examId}`);
       throw new HttpException('Exam not found', HttpStatus.NOT_FOUND);
     }
   
-    // 2. Check apakah ujiannya status publish
+    // Check if the exam is in PUBLISH status
     if (exam.statusExam !== StatusExam.PUBLISH) {
       this.logger.error(`${executor} Exam with ID: ${examId} is not in PUBLISH status`);
       throw new HttpException('Exam is not published', HttpStatus.BAD_REQUEST);
     }
   
-    // 3. Check jika jawaban sudah ada
+    // Check if an answer already exists for this user and exam
     if (existingAnswer) {
       this.logger.log(`${executor} Existing answer found for exam ID: ${examId}, participant answer ID: ${existingAnswer.id}`);
       return existingAnswer;
     }
   
-    // 4. Validasi apakah user berada di ujian atau kelas tersebut
-    const isAuthorized = await this.validateStudentInExam(currentUser, exam);
-    if (!isAuthorized) {
-      this.logger.error(`${executor} User with ID: ${currentUser.id} is not authorized for the exam`);
+    // Check eligibility
+    const isEligible = await this.isEligibleForExam(exam, currentUser);
+    if (!isEligible) {
+      this.logger.error(`${executor} User with ID: ${currentUser.id} is not eligible for the exam`);
       throw new HttpException('You are not authorized for this exam', HttpStatus.FORBIDDEN);
     }
   
-    // 5. Simpan ke dalam database jika belum ada
+    // Generate a random question order if eligible
     const randomQuestionNumber = this.generateRandomQuestionOrder(exam.sumQuestion, exam.randomize);
   
+    // Create answer template
     const listAnswers = Array.from({ length: exam.sumQuestion }, (_, i) => ({
       no: i + 1,
       ans: "",
       hst: 0
     }));
   
+    // Create and save the participant answer
     const participantAnswer = this.participantAnswerRepository.create({
       user: currentUser,
       exam,
       timeStarted: new Date(),
       randomQuestionNumber: JSON.stringify(randomQuestionNumber),
       listAnswers: JSON.stringify(listAnswers),
-      latitude: latitude,
-      longitude: longitude,
       status: StatusAnswer.IN_PROGRESS,
       createdBy: currentUser.fullName,
       updatedBy: currentUser.fullName,
@@ -91,6 +92,7 @@ export class ParticipantAnswerService {
   
     return savedParticipantAnswer;
   }
+  
 
   async updateAnswer(updateAnswerDto: UpdateParticipantAnswerDto, currentUser: any) {
     const { examId, no, ans, hst } = updateAnswerDto;
@@ -252,32 +254,6 @@ export class ParticipantAnswerService {
     };
   }
   
-  private async validateStudentInExam(currentUser: Users, exam: Exam): Promise<boolean> {
-    if (exam.participantType === ParticipantType.CLASS) {
-      // Gabungkan validasi kelas dan ujian dalam satu query
-      const participantClass = await this.participantExamRepository.findOne({
-        where: {
-          class: { userClasses: { user : { id : currentUser.id} } }, // Gabungkan validasi kelas dan pengguna
-          exam: { id: exam.id },
-          statusData: true,
-        },
-      });
-  
-      return !!participantClass;
-    } else {
-      // Validasi berdasarkan user partisipan di ujian
-      const participantUser = await this.participantExamRepository.findOne({
-        where: {
-          user: { id: currentUser.id },
-          exam: { id: exam.id },
-          statusData: true,
-        },
-      });
-  
-      return !!participantUser;
-    }
-  }
-
   private generateRandomQuestionOrder(numQuestions: number, isRandomized: boolean): number[] {
     const order = Array.from({ length: numQuestions }, (_, i) => i + 1);
     
@@ -291,5 +267,64 @@ export class ParticipantAnswerService {
   
     return order;
   }
+
+ 
+  // Helper function to get all classes the user belongs to
+  private async getUserClassIds(userId: number) {
+    const userClasses = await this.userClassRepository.query(
+      `SELECT classEntityId FROM user_class WHERE userId = ? AND statusData = true`, 
+      [userId]
+    );
+  
+    return userClasses.map((userClass) => userClass.classEntityId);
+  }
+
+  private async isEligibleForExam(exam: any, currentUser: any): Promise<boolean> {
+    // Check participant type and validate eligibility
+    if (exam.participantType === ParticipantType.CLASS) {
+      const userClassIds = await this.getUserClassIds(currentUser.id);
+      const participantClasses = await this.participantExamRepository.query(
+        `SELECT classId FROM participant_exam WHERE examId = ? AND statusData = true`, 
+        [exam.id]
+      );
+  
+      const participantClassIds = participantClasses.map((p) => p.classId);
+      return userClassIds.some((classId) => participantClassIds.includes(classId));
+    } else if (exam.participantType === ParticipantType.USER) {
+      const participantUser = await this.participantExamRepository.query(
+        `SELECT * FROM participant_exam WHERE userId = ? AND examId = ? AND statusData = true`, 
+        [currentUser.id, exam.id]
+      );
+  
+      return participantUser.length > 0;
+    }
+    return false;
+  }
+
+  async doesAnswerExist(examId: number, currentUser:any): Promise<boolean> {
+    const executor = `[${currentUser.fullName}] [doesAnswerExist]`;
+
+    this.logger.log(`${executor} Checking if answer exists for examId: ${examId}, userId: ${currentUser.id}`);
+  
+    // Check if an answer already exists for this user and exam
+    const existingAnswer = await this.participantAnswerRepository.findOne({
+      where: {
+        exam: { id: examId },
+        user: { id: currentUser.id },
+        statusData: true,
+      },
+    });
+  
+    if (existingAnswer) {
+      this.logger.log(`${executor} Answer found for examId: ${examId}, userId: ${currentUser.id}`);
+    } else {
+      this.logger.log(`${executor} No answer found for examId: ${examId}, userId: ${currentUser.id}`);
+    }
+  
+    // Return true if an answer exists, otherwise false
+    return !!existingAnswer;
+  }
+  
+  
   
 }

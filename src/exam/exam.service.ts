@@ -13,6 +13,7 @@ import { UserRole } from 'src/user-role/entities/user-role.entity';
 import { Question } from 'src/question/entities/question.entity';
 import { BaseEditExamDto } from './dto/base-edit-exam.dto';
 import { ParticipantExam } from 'src/participant-exam/entities/participant-exam.entity';
+import { Setting } from 'src/settings/entities/setting.entity';
 
 @Injectable()
 export class ExamService {
@@ -24,6 +25,9 @@ export class ExamService {
     private readonly examRepository: Repository<Exam>,
     @InjectRepository(Question)
     private readonly questionRepository: Repository<Question>,
+    @InjectRepository(Setting)
+    private readonly settingRepository: Repository<Setting>,
+    
     private readonly participantExamService: ParticipantExamService,
     private dataSource: DataSource,
   ) {}
@@ -481,6 +485,7 @@ export class ExamService {
       .addOrderBy('exam.updatedAt', 'DESC');
 
       const examList = await query.getMany();   
+      
 
       // Memetakan data exam agar subject dan participants hanya berisi field yang diperlukan
       const simplifiedExamList = await Promise.all(examList.map(async (exam) => {
@@ -491,16 +496,16 @@ export class ExamService {
                 complete: true,
             },
         });
-        
-        const totalQuestionsCount = await this.questionRepository.count({
-            where: {
-                exam: { id: exam.id },
-            },
-        });
+      
+
+        //Url ujian
+        const BASE_URL = await this.settingRepository.findOne({ where: { key: 'BASE_URL' } });
+        const examUrl = `${BASE_URL.value}/ujian/start/${exam.id}`
 
         // Membuat objek simplifiedExam dengan progress
         return {
             ...exam,
+            examURL : examUrl,
             progress:{
               progress: `${completedQuestionsCount}/${exam.sumQuestion}`,
               isComplete: completedQuestionsCount == exam.sumQuestion
@@ -608,11 +613,14 @@ export class ExamService {
       ? StatusExam.DRAFT
       : StatusExam.WAITING_SUBMITTER;
 
+    const passcode = Math.floor(100000 + Math.random() * 900000);
+  
     const exam = queryRunner.manager.create(Exam, {
       ...createQuisDailyExamDto,
       startDate: new Date(createQuisDailyExamDto.startDate),
       owner: owner,
       statusExam,
+      passcode,
       createdBy: currentUser.fullName,
       updatedBy: currentUser.fullName,
       subject: subject,
