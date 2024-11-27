@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpException, HttpStatus, ValidationPipe, UsePipes } from '@nestjs/common';
+import { Controller, Post, Body, HttpException, HttpStatus, ValidationPipe, UsePipes, Get } from '@nestjs/common';
 import { SebExamService } from './seb-exam.service';
 import { ExitExamDto } from './dto/exit-seb-exam.dto';
 import { StartExamDto } from './dto/start-seb-exam.dto';
@@ -47,6 +47,16 @@ export class SebExamController {
         message: 'Exit successfully',
         data: result,
       };
+    }
+
+    @Get('active')
+    async getAllActiveSebExams(): Promise<any> {
+        const result = await this.sebExamService.getAllActiveSebExams();
+        return {
+          statusCode: HttpStatus.OK,
+          message: 'Get All SEB successfully',
+          data: result,
+        };
     }
 
 }
