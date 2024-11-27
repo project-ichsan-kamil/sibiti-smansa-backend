@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from './users/users.module';
 import { ProfileUserModule } from './profile-user/profile-user.module';
@@ -55,6 +56,7 @@ import { SebExamModule } from './seb-exam/seb-exam.module';
     S3Module,
     SettingsModule,
     SebExamModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [],
   providers: [EncryptionService],
