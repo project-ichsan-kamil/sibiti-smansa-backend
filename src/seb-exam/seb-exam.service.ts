@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SebExam } from './entities/seb-exam.entity';
 import { randomInt } from 'crypto';  // Node.js module for generating random numbers
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class SebExamService {
@@ -69,4 +70,37 @@ export class SebExamService {
                 isExit: true,
             };
         } 
+
+    async getAllActiveSebExams(): Promise<SebExam[]> {
+        try {
+            const activeExams = await this.sebExamRepository.find({
+                where: { statusData: true },  // Filter only exams with statusData = true
+                order: { name: 'ASC' },       // Sort by 'name' in ascending order
+            });
+    
+            this.logger.log(`Found ${activeExams.length} active SebExams`);
+            return activeExams;
+        } catch (error) {
+            this.logger.error('Error fetching active SebExams', error.stack);
+            throw new HttpException('Error fetching active SebExams', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+
+      // Cron job to update passwords every 5 minutes
+      @Cron('0 */5 * * * *')
+      async updateExamPasswords(): Promise<void> {
+          try {
+              const exams = await this.sebExamRepository.find();
+              for (const exam of exams) {
+                  const newPassword = this.generateRandomCode();
+                  exam.password = newPassword;
+                  exam.updatedBy = 'SYSTEM';
+                  await this.sebExamRepository.save(exam);
+                  this.logger.log(`Password updated for SebExam ID: ${exam.id}`);
+              }
+          } catch (error) {
+              this.logger.error('Error updating passwords for exams', error.stack);
+          }
+      }
 }
